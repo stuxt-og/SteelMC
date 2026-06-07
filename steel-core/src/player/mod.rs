@@ -106,6 +106,7 @@ use steel_protocol::packets::{
 };
 use steel_registry::item_stack::ItemStack;
 
+use steel_utils::console;
 use steel_utils::random;
 use steel_utils::{BlockPos, BlockStateId, ChunkPos, Identifier};
 
@@ -1317,7 +1318,6 @@ impl Player {
 
     /// Self-explanatory
     pub fn start_using_item(&self, inv: &InventoryAccess, hand: InteractionHand) {
-        print!("test");
         if !self.use_item.lock().is_empty() {
             return;
         }
@@ -1339,6 +1339,7 @@ impl Player {
     /// if player is in an invalid world
     pub fn tick_using_item(&self) {
         let remaining = self.use_item_remaining.load(Ordering::SeqCst);
+
         if remaining == 0 {
             return;
         }
@@ -1355,12 +1356,15 @@ impl Player {
         if !item_matches {
             *self.use_item.lock() = ItemStack::empty();
             self.use_item_remaining.store(0, Ordering::SeqCst);
+            self.set_entity_flag(0x01, false);
+            self.set_entity_flag(0x02, false);
             return;
         }
 
         let new_remaining = remaining - 1;
         self.use_item_remaining
             .store(new_remaining, Ordering::SeqCst);
+
         if new_remaining != 0 {
             return;
         }
