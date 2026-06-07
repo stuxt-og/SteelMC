@@ -1,5 +1,5 @@
 [files]
-extend-exclude = ["steel-registry/src/carver.rs", "steel-registry/build/carvers.rs", "**/build_assets/**", "*.json"]
+extend-exclude = ["**/build_assets/**", "*.json"]
 
 [type.locale]
 extend-glob = ["**/locale.rs"]

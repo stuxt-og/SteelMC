@@ -18,10 +18,8 @@ mod standing_and_wall_block_item;
 
 mod flint_and_steel;
 
-mod consumable;
 mod food;
 mod potion;
-//mod ominous_potion;
 
 pub use axe::AxeItem;
 pub use block_item::{BlockItem, DoubleHighBlockItem};

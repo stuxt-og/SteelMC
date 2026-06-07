@@ -3,7 +3,7 @@
 //! This module provides the core types for storing component values in an ABI-stable way.
 //! Vanilla components get dedicated enum variants for zero-cost access, while plugin
 //! components use the `Other` variant with opaque bytes.
-use super::components::{ConsumableComponent, Equippable, FoodProperties, ItemEnchantments, Tool};
+use super::components::{Consumable, Equippable, FoodProperties, ItemEnchantments, Tool};
 use text_components::TextComponent;
 
 /// Discriminant for [`ComponentData`] variants.
@@ -79,7 +79,7 @@ pub enum ComponentData {
     // minecraft:food_properties
     FoodProperties(FoodProperties),
     // minecraft:consumable
-    Consumable(ConsumableComponent),
+    Consumable(Consumable),
 
     // ==================== Not yet implemented ====================
     /// Placeholder for components that aren't implemented yet.
@@ -384,7 +384,7 @@ impl Component for FoodProperties {
     }
 }
 
-impl Component for ConsumableComponent {
+impl Component for Consumable {
     fn into_data(self) -> ComponentData {
         ComponentData::Consumable(self)
     }

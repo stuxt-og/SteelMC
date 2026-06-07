@@ -11,8 +11,7 @@ pub use super::registry::DataComponentType;
 
 // Re-export component types for convenience
 pub use super::components::{
-    ConsumableComponent, Equippable, EquippableSlot, FoodProperties, ItemEnchantments, Tool,
-    ToolRule,
+    Consumable, Equippable, EquippableSlot, FoodProperties, ItemEnchantments, Tool, ToolRule,
 };
 
 // ==================== Fully Implemented Components ====================
@@ -111,7 +110,7 @@ pub const NOTE_BLOCK_SOUND: DataComponentType<()> =
 pub const FOOD: DataComponentType<FoodProperties> =
     DataComponentType::new(Identifier::vanilla_static("food"));
 
-pub const CONSUMABLE: DataComponentType<ConsumableComponent> =
+pub const CONSUMABLE: DataComponentType<Consumable> =
     DataComponentType::new(Identifier::vanilla_static("consumable"));
 
 // ==================== Stub Component Keys ====================

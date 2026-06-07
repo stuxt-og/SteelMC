@@ -35,8 +35,6 @@ use crate::{
     vanilla_items::ITEMS,
 };
 
-use crate::data_components::components::ConsumableComponent;
-
 /// A stack of items with a count and component modifications.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ItemStack {
@@ -200,6 +198,12 @@ impl ItemStack {
     #[must_use]
     pub fn is_broken(&self) -> bool {
         self.is_damageable_item() && self.get_damage_value() >= self.get_max_damage()
+    }
+
+    /// Returns vanilla `ItemStack.nextDamageWillBreak()`.
+    #[must_use]
+    pub fn next_damage_will_break(&self) -> bool {
+        self.is_damageable_item() && self.get_damage_value() >= self.get_max_damage() - 1
     }
 
     /// Damages the item and breaks it if durability reaches zero.
@@ -770,7 +774,7 @@ impl ItemStack {
     /// Based on Java's Item.getUseDuration
     pub fn get_use_duration(&self) -> u32 {
         if let Some(consumable) = self.get(CONSUMABLE) {
-            ConsumableComponent::consume_ticks(&consumable.data);
+            return (consumable.consume_seconds * 20.0) as u32;
         }
 
         //if !self.has(BLOCKS_ATTACKS) && !self.has(KINETIC_WEAPON) { 0 } else { 7200 }

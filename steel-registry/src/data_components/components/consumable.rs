@@ -1,10 +1,7 @@
-use std::any::Any;
 use std::clone::Clone;
 use std::cmp::PartialEq;
-use std::fmt;
 use std::io::{Cursor, Read, Result, Write};
 use std::str::FromStr;
-use std::sync::Arc;
 use std::vec::Vec;
 
 use steel_utils::{
@@ -19,78 +16,14 @@ use crate::items::item::{ConsumeEffect, ItemUseAnimation};
 use simdnbt::owned::{NbtCompound, NbtTag};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FoodProperties {
-    pub nutrition: VarInt,
-    pub saturation: f32,
-    pub can_always_eat: bool,
-}
-
-impl WriteTo for FoodProperties {
-    fn write(&self, writer: &mut impl Write) -> Result<()> {
-        // Format: nutrition (VarInt), saturation (f32), can_always_eat (bool)
-        self.nutrition.write(writer)?;
-        writer.write_all(&self.saturation.to_be_bytes())?;
-        writer.write_all(&[self.can_always_eat as u8])?;
-
-        Ok(())
-    }
-}
-
-impl ReadFrom for FoodProperties {
-    fn read(data: &mut Cursor<&[u8]>) -> Result<Self> {
-        let mut saturation_bytes = [0u8; 4];
-        data.read_exact(&mut saturation_bytes)?;
-
-        let mut can_always_eat_bytes = [0u8; 1];
-        data.read_exact(&mut can_always_eat_bytes)?;
-
-        Ok(Self {
-            nutrition: VarInt::read(data)?,
-            saturation: f32::from_be_bytes(saturation_bytes),
-            can_always_eat: can_always_eat_bytes[0] != 0,
-        })
-    }
-}
-
-impl simdnbt::ToNbtTag for FoodProperties {
-    fn to_nbt_tag(self) -> simdnbt::owned::NbtTag {
-        let mut compound = NbtCompound::new();
-        compound.insert("nutrition", NbtTag::Int(self.nutrition.0));
-        compound.insert("saturation", NbtTag::Float(self.saturation));
-        compound.insert("can_always_eat", NbtTag::Byte(self.can_always_eat as i8));
-        NbtTag::Compound(compound)
-    }
-}
-
-impl simdnbt::FromNbtTag for FoodProperties {
-    fn from_nbt_tag(tag: simdnbt::borrow::NbtTag) -> Option<Self> {
-        let compound = tag.compound()?;
-        Some(Self {
-            nutrition: VarInt::from(compound.get("nutrition")?.int()?),
-            saturation: compound.get("saturation")?.float()?,
-            can_always_eat: compound.get("can_always_eat")?.byte()? != 0,
-        })
-    }
-}
-
-impl HashComponent for FoodProperties {
-    fn hash_component(&self, hasher: &mut ComponentHasher) {
-        // For now, hash as empty map since full implementation requires proper codec
-        hasher.start_map();
-        // TODO: Add proper field hashing when Tool codec is implemented
-        hasher.end_map();
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ConsumableData {
+pub struct Consumable {
     pub consume_seconds: f32,
     pub animation: ItemUseAnimation,
     pub has_consume_particles: bool,
     pub on_consume_effects: Vec<ConsumeEffect>,
 }
 
-impl Default for ConsumableData {
+impl Default for Consumable {
     fn default() -> Self {
         Self {
             consume_seconds: 1.6,
@@ -101,7 +34,7 @@ impl Default for ConsumableData {
     }
 }
 
-impl ReadFrom for ConsumableData {
+impl ReadFrom for Consumable {
     fn read(data: &mut Cursor<&[u8]>) -> Result<Self> {
         let mut consume_seconds_bytes = [0u8; 4];
         data.read_exact(&mut consume_seconds_bytes)?;
@@ -131,7 +64,7 @@ impl ReadFrom for ConsumableData {
     }
 }
 
-impl WriteTo for ConsumableData {
+impl WriteTo for Consumable {
     fn write(&self, writer: &mut impl Write) -> Result<()> {
         // Format: nutrition (VarInt), saturation (f32), can_always_eat (bool)
         writer.write_all(&self.consume_seconds.to_be_bytes())?;
@@ -152,7 +85,7 @@ impl WriteTo for ConsumableData {
     }
 }
 
-impl simdnbt::FromNbtTag for ConsumableData {
+impl simdnbt::FromNbtTag for Consumable {
     fn from_nbt_tag(tag: simdnbt::borrow::NbtTag) -> Option<Self> {
         let compound = tag.compound()?;
 
@@ -184,7 +117,7 @@ impl simdnbt::FromNbtTag for ConsumableData {
     }
 }
 
-impl simdnbt::ToNbtTag for ConsumableData {
+impl simdnbt::ToNbtTag for Consumable {
     fn to_nbt_tag(self) -> simdnbt::owned::NbtTag {
         let mut compound = NbtCompound::new();
         compound.insert("consume_seconds", NbtTag::Float(self.consume_seconds));
@@ -205,84 +138,59 @@ impl simdnbt::ToNbtTag for ConsumableData {
     }
 }
 
-/// Some types are in steel-core, so here we do this to make it compile
-/// see implementation in steel-core (ConsumableImpl)
-pub trait ConsumableBehavior: Send + Sync + 'static {}
+// pub struct ConsumableComponent {
+//     pub data: ConsumableData,
+// }
+//
+// impl ConsumableComponent {
+//     pub fn new(data: ConsumableData) -> Self {
+//         Self {
+//             data,
+//         }
+//     }
+//
+//     pub fn with_handler(&mut self, handler: impl Consumable + 'static) {
+//         self.handler = Some(Arc::new(handler));
+//     }
+//
+//     pub fn is_handler_set(&self) -> bool {
+//         self.handler.is_some()
+//     }
+//
+//     pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+//         self.handler.as_deref()?.as_any().downcast_ref::<T>()
+//     }
+//
+//     pub fn consume_ticks(data: &ConsumableData) -> u32 {
+//         (data.consume_seconds * 20.0) as u32
+//     }
+// }
 
-pub trait Consumable: Send + Sync + 'static {
-    fn as_any(&self) -> &dyn Any;
-    fn clone_arc(&self) -> Arc<dyn Consumable>;
-}
+// // Manually implementing Debug, PartialEq, Clone because of handler field
+// impl fmt::Debug for ConsumableComponent {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         f.debug_struct("ConsumableComponent")
+//             .field("data", &self.data)
+//             .field("handler", &"Arc<dyn Consumable>")
+//             .finish()
+//     }
+// }
 
-impl<T> Consumable for T
-where
-    T: ConsumableBehavior + Clone,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+// impl PartialEq for ConsumableComponent {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.data == other.data
+//     }
+// }
+//
+// impl Clone for ConsumableComponent {
+//     fn clone(&self) -> Self {
+//         Self {
+//             data: self.data.clone(),
+//         }
+//     }
+// }
 
-    fn clone_arc(&self) -> Arc<dyn Consumable> {
-        Arc::new(self.clone())
-    }
-}
-
-pub struct ConsumableComponent {
-    pub handler: Option<Arc<dyn Consumable>>,
-    pub data: ConsumableData,
-}
-
-impl ConsumableComponent {
-    pub fn new(data: ConsumableData) -> Self {
-        Self {
-            handler: None,
-            data,
-        }
-    }
-
-    pub fn with_handler(&mut self, handler: impl Consumable + 'static) {
-        self.handler = Some(Arc::new(handler));
-    }
-
-    pub fn is_handler_set(&self) -> bool {
-        self.handler.is_some()
-    }
-
-    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
-        self.handler.as_deref()?.as_any().downcast_ref::<T>()
-    }
-
-    pub fn consume_ticks(data: &ConsumableData) -> u32 {
-        (data.consume_seconds * 20.0) as u32
-    }
-}
-
-// Manually implementing Debug, PartialEq, Clone because of handler field
-impl fmt::Debug for ConsumableComponent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ConsumableComponent")
-            .field("data", &self.data)
-            .field("handler", &"Arc<dyn Consumable>")
-            .finish()
-    }
-}
-
-impl PartialEq for ConsumableComponent {
-    fn eq(&self, other: &Self) -> bool {
-        self.data == other.data
-    }
-}
-
-impl Clone for ConsumableComponent {
-    fn clone(&self) -> Self {
-        Self {
-            handler: self.handler.as_deref().map(|h| h.clone_arc()),
-            data: self.data.clone(),
-        }
-    }
-}
-
-impl HashComponent for ConsumableComponent {
+impl HashComponent for Consumable {
     fn hash_component(&self, hasher: &mut ComponentHasher) {
         // For now, hash as empty map since full implementation requires proper codec
         hasher.start_map();
@@ -291,34 +199,32 @@ impl HashComponent for ConsumableComponent {
     }
 }
 
-impl ReadFrom for ConsumableComponent {
-    fn read(data: &mut Cursor<&[u8]>) -> Result<Self> {
-        Ok(Self {
-            data: ConsumableData::read(data)?,
-            handler: None,
-        })
-    }
-}
+// impl ReadFrom for ConsumableComponent {
+//     fn read(data: &mut Cursor<&[u8]>) -> Result<Self> {
+//         Ok(Self {
+//             data: ConsumableData::read(data)?,
+//         })
+//     }
+// }
 
-impl WriteTo for ConsumableComponent {
-    fn write(&self, writer: &mut impl Write) -> Result<()> {
-        self.data.write(writer)?;
+// impl WriteTo for ConsumableComponent {
+//     fn write(&self, writer: &mut impl Write) -> Result<()> {
+//         self.data.write(writer)?;
+//
+//         Ok(())
+//     }
+// }
 
-        Ok(())
-    }
-}
-
-impl simdnbt::FromNbtTag for ConsumableComponent {
-    fn from_nbt_tag(tag: simdnbt::borrow::NbtTag) -> Option<Self> {
-        Some(Self {
-            data: ConsumableData::from_nbt_tag(tag)?,
-            handler: None,
-        })
-    }
-}
-
-impl simdnbt::ToNbtTag for ConsumableComponent {
-    fn to_nbt_tag(self) -> simdnbt::owned::NbtTag {
-        self.data.to_nbt_tag()
-    }
-}
+// impl simdnbt::FromNbtTag for ConsumableComponent {
+//     fn from_nbt_tag(tag: simdnbt::borrow::NbtTag) -> Option<Self> {
+//         Some(Self {
+//             data: ConsumableData::from_nbt_tag(tag)?,
+//         })
+//     }
+// }
+//
+// impl simdnbt::ToNbtTag for ConsumableComponent {
+//     fn to_nbt_tag(self) -> simdnbt::owned::NbtTag {
+//         self.data.to_nbt_tag()
+//     }
+// }
