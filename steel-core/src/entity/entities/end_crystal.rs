@@ -1,5 +1,6 @@
 //! Minimal End Crystal entity implementation for End spike worldgen.
 
+use std::any::Any;
 use std::sync::Weak;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -172,5 +173,9 @@ impl Entity for EndCrystalEntity {
         if let Some(invulnerable) = nbt.byte("Invulnerable") {
             self.set_invulnerable(invulnerable != 0);
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }

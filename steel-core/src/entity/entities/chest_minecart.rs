@@ -1,5 +1,6 @@
 //! Chest minecart state needed by structure generation and persistence.
 
+use std::any::Any;
 use std::str::FromStr;
 use std::sync::Weak;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -154,6 +155,10 @@ impl Entity for ChestMinecartEntity {
         *self.loot_table.lock() = loot_table;
         self.loot_table_seed
             .store(nbt.long("LootTableSeed").unwrap_or(0), Ordering::Relaxed);
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

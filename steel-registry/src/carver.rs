@@ -16,7 +16,7 @@ use steel_utils::value_providers::{FloatProvider, HeightProvider, VerticalAnchor
 /// Shared per-carver configuration fields present on every carver type.
 ///
 /// Mirrors vanilla's `CarverConfiguration`. The `replaceable` block set is
-/// stored as a tag identifier (e.g. `minecraft:overworld_carver_replaceables`)
+/// stored as a tag identifier (e.g. `minecraft:overworld_carver_replaceable`)
 /// and resolved against `BlockRegistry::is_in_tag` at carve time.
 #[derive(Debug, Clone)]
 pub struct CarverConfiguration {

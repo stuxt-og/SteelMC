@@ -3,6 +3,7 @@
 //! Display entities render a block, item, or text without collision.
 //! They're commonly used for visual effects, holograms, and decorations.
 
+use std::any::Any;
 use std::sync::Weak;
 
 use glam::DVec3;
@@ -123,5 +124,9 @@ impl Entity for BlockDisplayEntity {
                 .block_state
                 .set(BlockStateId(state_id as u16));
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }

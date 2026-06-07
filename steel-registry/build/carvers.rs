@@ -181,7 +181,7 @@ fn generate_float_provider(f: FloatProvider) -> TokenStream {
     }
 }
 
-/// Parses a tag reference string like `#minecraft:overworld_carver_replaceables`
+/// Parses a tag reference string like `#minecraft:overworld_carver_replaceable`
 /// into the underlying tag [`Identifier`]. Non-tag (inline list) forms are
 /// rejected — all vanilla carvers use tags.
 fn parse_replaceable_tag(s: &str) -> Identifier {

@@ -1,5 +1,6 @@
 //! Minimal persistent item-frame entity used by structure generation.
 
+use std::any::Any;
 use std::sync::Weak;
 
 use crossbeam::atomic::AtomicCell;
@@ -221,6 +222,10 @@ impl Entity for ItemFrameEntity {
         if let Some(direction) = facing {
             self.set_direction(direction);
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

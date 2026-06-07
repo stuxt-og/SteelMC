@@ -10,7 +10,10 @@ use super::registry::DataComponentRegistry;
 pub use super::registry::DataComponentType;
 
 // Re-export component types for convenience
-pub use super::components::{Equippable, EquippableSlot, ItemEnchantments, Tool, ToolRule};
+pub use super::components::{
+    ConsumableComponent, Equippable, EquippableSlot, FoodProperties, ItemEnchantments, Tool,
+    ToolRule,
+};
 
 // ==================== Fully Implemented Components ====================
 
@@ -104,10 +107,16 @@ pub const TOOLTIP_STYLE: DataComponentType<()> =
 pub const NOTE_BLOCK_SOUND: DataComponentType<()> =
     DataComponentType::new(Identifier::vanilla_static("note_block_sound"));
 
-pub const FOOD: DataComponentType<()> = DataComponentType::new(Identifier::vanilla_static("food"));
+// ==================== Fully implemented Component Keys ====================
+pub const FOOD: DataComponentType<FoodProperties> =
+    DataComponentType::new(Identifier::vanilla_static("food"));
 
-pub const CONSUMABLE: DataComponentType<()> =
+pub const CONSUMABLE: DataComponentType<ConsumableComponent> =
     DataComponentType::new(Identifier::vanilla_static("consumable"));
+
+// ==================== Stub Component Keys ====================
+// These components are registered but use placeholder serialization.
+// They use the Todo ComponentData variant.
 
 pub const USE_REMAINDER: DataComponentType<()> =
     DataComponentType::new(Identifier::vanilla_static("use_remainder"));
@@ -474,9 +483,9 @@ pub fn register_vanilla_data_components(registry: &mut DataComponentRegistry) {
     // 22: intangible_projectile
     registry.register(INTANGIBLE_PROJECTILE, ComponentDataDiscriminant::Empty);
     // 23: food
-    register_stub!(registry, FOOD.key.clone());
+    registry.register(FOOD, ComponentDataDiscriminant::FoodProperties);
     // 24: consumable
-    register_stub!(registry, CONSUMABLE.key.clone());
+    registry.register(CONSUMABLE, ComponentDataDiscriminant::Consumable);
     // 25: use_remainder
     register_stub!(registry, USE_REMAINDER.key.clone());
     // 26: use_cooldown

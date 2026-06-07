@@ -4,6 +4,7 @@
 //! (gravity, friction), despawns after 5 minutes, and can be picked up
 //! by players after a short delay.
 
+use std::any::Any;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Weak};
 
@@ -1003,5 +1004,9 @@ impl Entity for ItemEntity {
         if self.get_item().is_empty() {
             self.set_removed(RemovalReason::Discarded);
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }

@@ -1,5 +1,6 @@
 //! NBT-preserving fallback entity.
 
+use std::any::Any;
 use std::sync::Weak;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -135,5 +136,9 @@ impl Entity for RawEntity {
 
     fn save_additional(&self, nbt: &mut NbtCompound) {
         *nbt = self.data.lock().clone();
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }

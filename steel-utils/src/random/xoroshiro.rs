@@ -40,7 +40,9 @@ impl Xoroshiro {
         Self::new(lo, hi)
     }
 
-    const fn new(lo: u64, hi: u64) -> Self {
+    /// Creates a new `Xoroshiro` from 2 u64s(which is u128) seed
+    #[must_use]
+    pub const fn new(lo: u64, hi: u64) -> Self {
         let (lo, hi) = if (lo | hi) == 0 {
             (GOLDEN_RATIO_64, SILVER_RATIO_64)
         } else {

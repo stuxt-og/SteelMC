@@ -16,13 +16,26 @@ use crate::{
         Component, ComponentData, ComponentPatchEntry, DataComponentMap, DataComponentPatch,
         DataComponentType,
         vanilla_components::{
-            DAMAGE, ENCHANTMENTS, EQUIPPABLE, Equippable, EquippableSlot, ItemEnchantments,
-            MAX_DAMAGE, MAX_STACK_SIZE, TOOL, Tool, UNBREAKABLE,
+            CONSUMABLE,
+            DAMAGE,
+            ENCHANTMENTS,
+            EQUIPPABLE,
+            Equippable,
+            EquippableSlot,
+            ItemEnchantments,
+            MAX_DAMAGE,
+            MAX_STACK_SIZE,
+            TOOL,
+            //BLOCKS_ATTACKS, KINETIC_WEAPON
+            Tool,
+            UNBREAKABLE,
         },
     },
     items::ItemRef,
     vanilla_items::ITEMS,
 };
+
+use crate::data_components::components::ConsumableComponent;
 
 /// A stack of items with a count and component modifications.
 #[derive(Debug, Clone, PartialEq)]
@@ -752,6 +765,17 @@ impl ItemStack {
         }
 
         true
+    }
+
+    /// Based on Java's Item.getUseDuration
+    pub fn get_use_duration(&self) -> u32 {
+        if let Some(consumable) = self.get(CONSUMABLE) {
+            ConsumableComponent::consume_ticks(&consumable.data);
+        }
+
+        //if !self.has(BLOCKS_ATTACKS) && !self.has(KINETIC_WEAPON) { 0 } else { 7200 }
+
+        32
     }
 }
 

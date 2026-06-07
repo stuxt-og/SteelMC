@@ -23,6 +23,8 @@ use crate::{entity::damage::DamageSource, player::Player};
 
 use entities::ItemEntity;
 
+use std::any::Any;
+
 /// Global counter for allocating unique entity IDs.
 ///
 /// Mirrors vanilla's `Entity.ENTITY_COUNTER`. Each new entity increments this
@@ -404,6 +406,9 @@ pub trait Entity: Send + Sync {
             self.id(),
         );
     }
+
+    /// Returns Any to be able convert self to types that implement Entity trait
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// A trait for living entities that can take damage, heal, and die.

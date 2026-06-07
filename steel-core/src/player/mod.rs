@@ -45,6 +45,7 @@ use block_breaking::BlockBreakingManager;
 use crossbeam::atomic::AtomicCell;
 use enum_dispatch::enum_dispatch;
 pub use game_profile::{GameProfile, GameProfileAction};
+use std::any::Any;
 use std::sync::{
     Arc, Weak,
     atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering},
@@ -65,6 +66,8 @@ use steel_registry::vanilla_game_rules::{
 };
 use steel_registry::{vanilla_attributes, vanilla_entities};
 use steel_utils::entity_events::EntityStatus;
+use steel_utils::random::Random;
+use steel_utils::types::InteractionHand;
 
 use arc_swap::ArcSwap;
 use steel_utils::locks::SyncMutex;
@@ -88,6 +91,7 @@ use crate::player::player_inventory::PlayerInventory;
 use crate::server::Server;
 use steel_registry::vanilla_damage_types;
 
+use steel_protocol::packets::game::SoundSource;
 use steel_protocol::packets::{
     common::SCustomPayload,
     game::{CContainerClose, CGameEvent, CSystemChat, GameEventType, PreviousMessage},
@@ -97,15 +101,19 @@ use steel_registry::item_stack::ItemStack;
 use steel_utils::BlockPos;
 
 use steel_utils::ChunkPos;
+use steel_utils::random;
 
 use crate::entity::LivingEntity;
 
 use crate::inventory::{MenuInstance, container::Container, inventory_menu::InventoryMenu};
 
+use crate::behavior::InventoryAccess;
+
 /// Re-export `PreviousMessage` as `PreviousMessageEntry` for use in `signature_cache`
 pub type PreviousMessageEntry = PreviousMessage;
 
 pub use steel_protocol::packets::common::{ChatVisibility, HumanoidArm, ParticleStatus};
+pub use steel_protocol::utils::ConnectionProtocol;
 
 /// Client-side settings sent via `SClientInformation` packet.
 /// This is stored separately from the packet struct to allow default initialization.
@@ -279,6 +287,13 @@ pub struct Player {
     /// Monotonic counter bumped on world teleport/reset. The chunk sending tick
     /// snapshots this before encoding and compares after to detect stale batches.
     pub chunk_send_epoch: AtomicU32,
+
+    /// Self-explanatory
+    pub random: SyncMutex<random::RandomSource>,
+
+    use_item: SyncMutex<ItemStack>,
+    use_item_remaining: AtomicU32,
+    use_item_hand: SyncMutex<InteractionHand>,
 }
 
 impl Player {
@@ -372,6 +387,16 @@ impl Player {
             level_callback: SyncMutex::new(Arc::new(NullEntityCallback)),
             experience: SyncMutex::new(Experience::default()),
             chunk_send_epoch: AtomicU32::new(0),
+            random: {
+                let unique_seed = random::create_unique_seed();
+
+                SyncMutex::new(random::RandomSource::Xoroshiro(
+                    random::xoroshiro::Xoroshiro::new(unique_seed.0, unique_seed.1),
+                ))
+            },
+            use_item: SyncMutex::new(ItemStack::empty()),
+            use_item_remaining: AtomicU32::new(0),
+            use_item_hand: SyncMutex::new(InteractionHand::MainHand),
         }
     }
 
@@ -419,6 +444,7 @@ impl Player {
             self.block_breaking.lock().tick(self, &world);
             self.check_inside_blocks();
             self.check_below_world();
+            self.tick_using_item();
 
             // TODO: Implement remaining player ticking logic here
             // - Managing game mode specific logic
@@ -1160,6 +1186,149 @@ impl Player {
             }
         }
     }
+
+    /// Reference: LivingEntity.setLivingEntityFlag
+    pub fn set_entity_flag(&self, flag: i8, value: bool) {
+        let mut ent_data = self.entity_data.lock();
+
+        let current = ent_data.living_entity_flags.get();
+
+        let new_value = if value {
+            current | flag
+        } else {
+            current & !flag
+        };
+
+        ent_data.living_entity_flags.set(new_value);
+    }
+
+    /// Self-explanatory
+    pub fn start_using_item(&self, inv: &InventoryAccess, hand: InteractionHand) {
+        if self.use_item_remaining.load(Ordering::SeqCst) > 0 {
+            return;
+        }
+
+        inv.with_inventory(|inv| {
+            let item = inv.get_item_in_hand(hand);
+            let duration = item.get_use_duration();
+            if !item.is_empty() {
+                self.use_item_remaining.store(duration, Ordering::SeqCst);
+                *self.use_item.lock() = item.clone();
+                *self.use_item_hand.lock() = hand;
+                self.set_entity_flag(0x01, true);
+                self.set_entity_flag(0x02, hand == InteractionHand::OffHand);
+            }
+        });
+    }
+
+    /// # Panics
+    /// if player is in an invalid world
+    pub fn tick_using_item(&self) {
+        let remaining = self.use_item_remaining.load(Ordering::SeqCst);
+        if remaining == 0 {
+            return;
+        }
+
+        let new_remaining = remaining - 1;
+        self.use_item_remaining
+            .store(new_remaining, Ordering::SeqCst);
+
+        if new_remaining == 0 {
+            self.set_entity_flag(0x01, false);
+            self.set_entity_flag(0x02, false);
+
+            let hand = *self.use_item_hand.lock();
+
+            {
+                let mut inv = self.inventory.lock();
+                let item = inv.get_item_in_hand_mut(hand);
+                if !item.is_empty() {
+                    item.shrink(1);
+                    if item.is_empty() {
+                        *item = ItemStack::empty();
+                    }
+                }
+            }
+
+            let block_pos = {
+                let pos = self.position.lock();
+                BlockPos::new(pos.x as i32, pos.y as i32, pos.z as i32)
+            };
+            let pitch = {
+                let mut r = self.random.lock();
+                0.9 + r.next_f32() * 0.1
+            };
+
+            self.level()
+                .expect("Failed to play burp sound, world is invalid")
+                .play_sound(697, SoundSource::Players, block_pos, 0.5, pitch, None);
+
+            self.food_data.lock().eat(1, 1.0);
+
+            *self.use_item.lock() = ItemStack::empty();
+        }
+    }
+
+    // pub fn start_using_item(&self, inv: &InventoryAccess, hand: InteractionHand) {
+    //     println!("test7");
+    //     // Якщо зараз немає активного використання – починаємо нове
+    //     if self.use_item.lock().is_empty() {
+    //         println!("test8");
+    //         inv.with_item(|item| {
+    //             let duration = item.get_use_duration();
+    //             if duration > 0 && !item.is_empty() {
+    //                 self.use_item_remaining.store(duration, Ordering::SeqCst);
+    //                 *self.use_item.lock() = item.clone();
+    //                 self.set_entity_flag(0x01, true);
+    //                 self.set_entity_flag(0x02, hand == InteractionHand::OffHand);
+    //             }
+    //         });
+    //         return;
+    //     }
+    //
+    //     println!("test10");
+    //
+    //     // Активне використання – зменшуємо лічильник
+    //     let remaining = self.use_item_remaining.load(Ordering::SeqCst);
+    //     let new_remaining = remaining - 1;
+    //     self.use_item_remaining.store(new_remaining, Ordering::SeqCst);
+    //
+    //     // Якщо лічильник дійшов до нуля – завершуємо
+    //     if new_remaining == 0 {
+    //         // Скидаємо флаги використання
+    //         self.set_entity_flag(0x01, false);
+    //         self.set_entity_flag(0x02, false);
+    //
+    //         // Зменшуємо стек предмета в руці
+    //         inv.with_item(|item| {
+    //             if !item.is_empty() {
+    //                 item.shrink(1);
+    //                 if item.is_empty() {
+    //                     *item = ItemStack::empty();
+    //                 }
+    //
+    //                 println!("test9");
+    //             }
+    //         });
+    //
+    //         // Звук поїдання
+    //         let block_pos = {
+    //             let pos = self.position.lock();
+    //             BlockPos::new(pos.x as i32, pos.y as i32, pos.z as i32)
+    //         };
+    //         let pitch = {
+    //             let mut r = self.random.lock();
+    //             0.9 + r.next_f32() * 0.1
+    //         };
+    //         if let Some(world) = self.level() {
+    //             world.play_sound(697, SoundSource::Players, block_pos, 0.5, pitch, None);
+    //         }
+    //
+    //         // Ефекти їжі
+    //         self.food_data.lock().eat(1, 1.0);
+    //         *self.use_item.lock() = ItemStack::empty();
+    //     }
+    // }
 }
 
 /// Why the player is being reset and spawned into a world.
@@ -1287,6 +1456,10 @@ impl Entity for Player {
             // Vanilla: PlayerList.sendAllPlayerInfo -> inventoryMenu.sendAllDataToRemote
             self.send_inventory_to_remote();
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

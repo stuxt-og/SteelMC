@@ -3,7 +3,7 @@
 //! This module provides the core types for storing component values in an ABI-stable way.
 //! Vanilla components get dedicated enum variants for zero-cost access, while plugin
 //! components use the `Other` variant with opaque bytes.
-use super::components::{Equippable, ItemEnchantments, Tool};
+use super::components::{ConsumableComponent, Equippable, FoodProperties, ItemEnchantments, Tool};
 use text_components::TextComponent;
 
 /// Discriminant for [`ComponentData`] variants.
@@ -20,6 +20,8 @@ pub enum ComponentDataDiscriminant {
     Equippable,
     Enchantments,
     TextComponent,
+    FoodProperties,
+    Consumable,
     Todo,
     Other,
 }
@@ -74,6 +76,10 @@ pub enum ComponentData {
     Enchantments(ItemEnchantments),
     /// TextComponent component (e.g., CustomName, ItemName)
     TextComponent(Box<TextComponent>),
+    // minecraft:food_properties
+    FoodProperties(FoodProperties),
+    // minecraft:consumable
+    Consumable(ConsumableComponent),
 
     // ==================== Not yet implemented ====================
     /// Placeholder for components that aren't implemented yet.
@@ -114,6 +120,8 @@ impl ComponentData {
             Self::Equippable(_) => ComponentDataDiscriminant::Equippable,
             Self::Enchantments(_) => ComponentDataDiscriminant::Enchantments,
             Self::TextComponent(_) => ComponentDataDiscriminant::TextComponent,
+            Self::FoodProperties(_) => ComponentDataDiscriminant::FoodProperties,
+            Self::Consumable(_) => ComponentDataDiscriminant::Consumable,
             Self::Todo => ComponentDataDiscriminant::Todo,
             Self::Other(_) => ComponentDataDiscriminant::Other,
         }
@@ -140,6 +148,8 @@ impl ComponentData {
             Self::Equippable(v) => v.hash_component(&mut hasher),
             Self::Enchantments(v) => v.hash_component(&mut hasher),
             Self::TextComponent(v) => v.hash_component(&mut hasher),
+            Self::FoodProperties(v) => v.hash_component(&mut hasher),
+            Self::Consumable(v) => v.hash_component(&mut hasher),
 
             // Stub/plugin types - hash as empty map for now
             // TODO: Implement proper hashing when these types are implemented
@@ -353,3 +363,43 @@ impl Component for TextComponent {
 // TextComponent and Identifier need special handling since they're used
 // for multiple component types. We'll handle these through the DataComponentType
 // registration rather than a blanket Component impl.
+
+impl Component for FoodProperties {
+    fn into_data(self) -> ComponentData {
+        ComponentData::FoodProperties(self)
+    }
+
+    fn from_data(data: ComponentData) -> Option<Self> {
+        match data {
+            ComponentData::FoodProperties(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    fn from_data_ref(data: &ComponentData) -> Option<&Self> {
+        match data {
+            ComponentData::FoodProperties(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+impl Component for ConsumableComponent {
+    fn into_data(self) -> ComponentData {
+        ComponentData::Consumable(self)
+    }
+
+    fn from_data(data: ComponentData) -> Option<Self> {
+        match data {
+            ComponentData::Consumable(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    fn from_data_ref(data: &ComponentData) -> Option<&Self> {
+        match data {
+            ComponentData::Consumable(v) => Some(v),
+            _ => None,
+        }
+    }
+}

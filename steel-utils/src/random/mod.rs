@@ -7,6 +7,9 @@ use crate::random::{
     xoroshiro::{Xoroshiro, XoroshiroSplitter},
 };
 
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+
 /// This module contains the gaussian random number generator.
 pub mod gaussian;
 /// This module contains the legacy random number generator implementation.
@@ -105,4 +108,22 @@ pub fn get_seed(x: i32, y: i32, z: i32) -> i64 {
         .wrapping_mul(42_317_861_i64)
         .wrapping_add(l.wrapping_mul(11));
     l >> 16
+}
+
+static SEED_COUNTER: AtomicU64 = AtomicU64::new(8_682_522_807_148_012_u64);
+
+/// creates unique random seed
+pub fn create_unique_seed() -> (u64, u64) {
+    let current_modifier = SEED_COUNTER.fetch_add(1_181_783_497_276_652_981_u64, Ordering::Relaxed);
+
+    let nano_time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos() as u64);
+
+    let unique_seed = current_modifier ^ nano_time;
+
+    (
+        unique_seed,
+        unique_seed.wrapping_add(0x9_e37_79b_97f_4a7_c15_u64),
+    )
 }
