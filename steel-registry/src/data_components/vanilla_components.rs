@@ -11,7 +11,8 @@ pub use super::registry::DataComponentType;
 
 // Re-export component types for convenience
 pub use super::components::{
-    Consumable, Equippable, EquippableSlot, FoodProperties, ItemEnchantments, Tool, ToolRule,
+    Consumable, Equippable, EquippableSlot, FoodProperties, ItemEnchantments, PotionContents, Tool,
+    ToolRule, UseCooldown, UseEffects, UseRemainder,
 };
 
 // ==================== Fully Implemented Components ====================
@@ -58,14 +59,10 @@ pub const ENCHANTMENT_GLINT_OVERRIDE: DataComponentType<bool> =
 pub const POTION_DURATION_SCALE: DataComponentType<f32> =
     DataComponentType::new(Identifier::vanilla_static("potion_duration_scale"));
 
-// ==================== Stub Component Keys ====================
-// These components are registered but use placeholder serialization.
-// They use the Todo ComponentData variant.
-
 pub const CUSTOM_DATA: DataComponentType<()> =
     DataComponentType::new(Identifier::vanilla_static("custom_data"));
 
-pub const USE_EFFECTS: DataComponentType<()> =
+pub const USE_EFFECTS: DataComponentType<UseEffects> =
     DataComponentType::new(Identifier::vanilla_static("use_effects"));
 
 pub const MINIMUM_ATTACK_CHARGE: DataComponentType<()> =
@@ -106,21 +103,16 @@ pub const TOOLTIP_STYLE: DataComponentType<()> =
 pub const NOTE_BLOCK_SOUND: DataComponentType<()> =
     DataComponentType::new(Identifier::vanilla_static("note_block_sound"));
 
-// ==================== Fully implemented Component Keys ====================
 pub const FOOD: DataComponentType<FoodProperties> =
     DataComponentType::new(Identifier::vanilla_static("food"));
 
 pub const CONSUMABLE: DataComponentType<Consumable> =
     DataComponentType::new(Identifier::vanilla_static("consumable"));
 
-// ==================== Stub Component Keys ====================
-// These components are registered but use placeholder serialization.
-// They use the Todo ComponentData variant.
-
-pub const USE_REMAINDER: DataComponentType<()> =
+pub const USE_REMAINDER: DataComponentType<UseRemainder> =
     DataComponentType::new(Identifier::vanilla_static("use_remainder"));
 
-pub const USE_COOLDOWN: DataComponentType<()> =
+pub const USE_COOLDOWN: DataComponentType<UseCooldown> =
     DataComponentType::new(Identifier::vanilla_static("use_cooldown"));
 
 pub const DAMAGE_RESISTANT: DataComponentType<()> =
@@ -182,7 +174,7 @@ pub const CHARGED_PROJECTILES: DataComponentType<()> =
 pub const BUNDLE_CONTENTS: DataComponentType<()> =
     DataComponentType::new(Identifier::vanilla_static("bundle_contents"));
 
-pub const POTION_CONTENTS: DataComponentType<()> =
+pub const POTION_CONTENTS: DataComponentType<PotionContents> =
     DataComponentType::new(Identifier::vanilla_static("potion_contents"));
 
 pub const SUSPICIOUS_STEW_EFFECTS: DataComponentType<()> =
@@ -441,7 +433,7 @@ pub fn register_vanilla_data_components(registry: &mut DataComponentRegistry) {
     // 4: unbreakable
     registry.register(UNBREAKABLE, ComponentDataDiscriminant::Empty);
     // 5: use_effects
-    register_stub!(registry, USE_EFFECTS.key.clone());
+    registry.register(USE_EFFECTS, ComponentDataDiscriminant::UseEffects);
     // 6: custom_name
     registry.register(CUSTOM_NAME, ComponentDataDiscriminant::TextComponent);
     // 7: minimum_attack_charge
@@ -486,9 +478,9 @@ pub fn register_vanilla_data_components(registry: &mut DataComponentRegistry) {
     // 24: consumable
     registry.register(CONSUMABLE, ComponentDataDiscriminant::Consumable);
     // 25: use_remainder
-    register_stub!(registry, USE_REMAINDER.key.clone());
+    registry.register(USE_REMAINDER, ComponentDataDiscriminant::UseRemainder);
     // 26: use_cooldown
-    register_stub!(registry, USE_COOLDOWN.key.clone());
+    registry.register(USE_COOLDOWN, ComponentDataDiscriminant::UseCooldown);
     // 27: damage_resistant
     register_stub!(registry, DAMAGE_RESISTANT.key.clone());
     // 28: tool
@@ -538,7 +530,7 @@ pub fn register_vanilla_data_components(registry: &mut DataComponentRegistry) {
     // 50: bundle_contents
     register_stub!(registry, BUNDLE_CONTENTS.key.clone());
     // 51: potion_contents
-    register_stub!(registry, POTION_CONTENTS.key.clone());
+    registry.register(POTION_CONTENTS, ComponentDataDiscriminant::PotionContents);
     // 52: potion_duration_scale
     registry.register(POTION_DURATION_SCALE, ComponentDataDiscriminant::Float);
     // 53: suspicious_stew_effects

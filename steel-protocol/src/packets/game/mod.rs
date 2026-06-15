@@ -35,6 +35,7 @@ mod c_player_combat_kill;
 mod c_player_info_update;
 mod c_player_position;
 mod c_remove_entities;
+mod c_remove_mob_effect;
 mod c_remove_player_info;
 mod c_respawn;
 mod c_rotate_head;
@@ -57,6 +58,7 @@ mod c_take_item_entity;
 mod c_ticking_state;
 mod c_ticking_step;
 mod c_update_attributes;
+mod c_update_mob_effect;
 mod chat_session_data;
 mod s_accept_teleportation;
 mod s_change_difficulty;
@@ -136,6 +138,7 @@ pub use c_player_info_update::{
 };
 pub use c_player_position::{CPlayerPosition, RelativeMovement};
 pub use c_remove_entities::CRemoveEntities;
+pub use c_remove_mob_effect::CRemoveMobEffect;
 pub use c_remove_player_info::CRemovePlayerInfo;
 pub use c_respawn::CRespawn;
 pub use c_rotate_head::CRotateHead;
@@ -160,6 +163,7 @@ pub use c_ticking_step::CTickingStep;
 pub use c_update_attributes::{
     AttributeModifierData, AttributeModifierOperation, AttributeSnapshot, CUpdateAttributes,
 };
+pub use c_update_mob_effect::CUpdateMobEffect;
 pub use chat_session_data::ProtocolRemoteChatSessionData;
 pub use s_accept_teleportation::SAcceptTeleportation;
 pub use s_change_difficulty::SChangeDifficulty;

@@ -24,9 +24,12 @@
     "name": "night_vision",
     "effects": [
       {
-        "effect": "night_vision",
+        "name": "night_vision",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -35,9 +38,12 @@
     "name": "long_night_vision",
     "effects": [
       {
-        "effect": "night_vision",
+        "name": "night_vision",
         "duration": 9600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -46,9 +52,12 @@
     "name": "invisibility",
     "effects": [
       {
-        "effect": "invisibility",
+        "name": "invisibility",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -57,9 +66,12 @@
     "name": "long_invisibility",
     "effects": [
       {
-        "effect": "invisibility",
+        "name": "invisibility",
         "duration": 9600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -68,9 +80,12 @@
     "name": "leaping",
     "effects": [
       {
-        "effect": "jump_boost",
+        "name": "jump_boost",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -79,9 +94,12 @@
     "name": "long_leaping",
     "effects": [
       {
-        "effect": "jump_boost",
+        "name": "jump_boost",
         "duration": 9600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -90,9 +108,12 @@
     "name": "strong_leaping",
     "effects": [
       {
-        "effect": "jump_boost",
+        "name": "jump_boost",
         "duration": 1800,
-        "amplifier": 1
+        "amplifier": 1,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -101,9 +122,12 @@
     "name": "fire_resistance",
     "effects": [
       {
-        "effect": "fire_resistance",
+        "name": "fire_resistance",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -112,9 +136,12 @@
     "name": "long_fire_resistance",
     "effects": [
       {
-        "effect": "fire_resistance",
+        "name": "fire_resistance",
         "duration": 9600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -123,9 +150,12 @@
     "name": "swiftness",
     "effects": [
       {
-        "effect": "speed",
+        "name": "speed",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -134,9 +164,12 @@
     "name": "long_swiftness",
     "effects": [
       {
-        "effect": "speed",
+        "name": "speed",
         "duration": 9600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -145,9 +178,12 @@
     "name": "strong_swiftness",
     "effects": [
       {
-        "effect": "speed",
+        "name": "speed",
         "duration": 1800,
-        "amplifier": 1
+        "amplifier": 1,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -156,9 +192,12 @@
     "name": "slowness",
     "effects": [
       {
-        "effect": "slowness",
+        "name": "slowness",
         "duration": 1800,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -167,9 +206,12 @@
     "name": "long_slowness",
     "effects": [
       {
-        "effect": "slowness",
+        "name": "slowness",
         "duration": 4800,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -178,9 +220,12 @@
     "name": "strong_slowness",
     "effects": [
       {
-        "effect": "slowness",
+        "name": "slowness",
         "duration": 400,
-        "amplifier": 3
+        "amplifier": 3,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -189,14 +234,20 @@
     "name": "turtle_master",
     "effects": [
       {
-        "effect": "slowness",
+        "name": "slowness",
         "duration": 400,
-        "amplifier": 3
+        "amplifier": 3,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       },
       {
-        "effect": "resistance",
+        "name": "resistance",
         "duration": 400,
-        "amplifier": 2
+        "amplifier": 2,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -205,14 +256,20 @@
     "name": "long_turtle_master",
     "effects": [
       {
-        "effect": "slowness",
+        "name": "slowness",
         "duration": 800,
-        "amplifier": 3
+        "amplifier": 3,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       },
       {
-        "effect": "resistance",
+        "name": "resistance",
         "duration": 800,
-        "amplifier": 2
+        "amplifier": 2,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -221,14 +278,20 @@
     "name": "strong_turtle_master",
     "effects": [
       {
-        "effect": "slowness",
+        "name": "slowness",
         "duration": 400,
-        "amplifier": 5
+        "amplifier": 5,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       },
       {
-        "effect": "resistance",
+        "name": "resistance",
         "duration": 400,
-        "amplifier": 3
+        "amplifier": 3,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -237,9 +300,12 @@
     "name": "water_breathing",
     "effects": [
       {
-        "effect": "water_breathing",
+        "name": "water_breathing",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -248,9 +314,12 @@
     "name": "long_water_breathing",
     "effects": [
       {
-        "effect": "water_breathing",
+        "name": "water_breathing",
         "duration": 9600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -259,9 +328,12 @@
     "name": "healing",
     "effects": [
       {
-        "effect": "instant_health",
+        "name": "instant_health",
         "duration": 1,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -270,9 +342,12 @@
     "name": "strong_healing",
     "effects": [
       {
-        "effect": "instant_health",
+        "name": "instant_health",
         "duration": 1,
-        "amplifier": 1
+        "amplifier": 1,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -281,9 +356,12 @@
     "name": "harming",
     "effects": [
       {
-        "effect": "instant_damage",
+        "name": "instant_damage",
         "duration": 1,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -292,9 +370,12 @@
     "name": "strong_harming",
     "effects": [
       {
-        "effect": "instant_damage",
+        "name": "instant_damage",
         "duration": 1,
-        "amplifier": 1
+        "amplifier": 1,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -303,9 +384,12 @@
     "name": "poison",
     "effects": [
       {
-        "effect": "poison",
+        "name": "poison",
         "duration": 900,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -314,9 +398,12 @@
     "name": "long_poison",
     "effects": [
       {
-        "effect": "poison",
+        "name": "poison",
         "duration": 1800,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -325,9 +412,12 @@
     "name": "strong_poison",
     "effects": [
       {
-        "effect": "poison",
+        "name": "poison",
         "duration": 432,
-        "amplifier": 1
+        "amplifier": 1,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -336,9 +426,12 @@
     "name": "regeneration",
     "effects": [
       {
-        "effect": "regeneration",
+        "name": "regeneration",
         "duration": 900,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -347,9 +440,12 @@
     "name": "long_regeneration",
     "effects": [
       {
-        "effect": "regeneration",
+        "name": "regeneration",
         "duration": 1800,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -358,9 +454,12 @@
     "name": "strong_regeneration",
     "effects": [
       {
-        "effect": "regeneration",
+        "name": "regeneration",
         "duration": 450,
-        "amplifier": 1
+        "amplifier": 1,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -369,9 +468,12 @@
     "name": "strength",
     "effects": [
       {
-        "effect": "strength",
+        "name": "strength",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -380,9 +482,12 @@
     "name": "long_strength",
     "effects": [
       {
-        "effect": "strength",
+        "name": "strength",
         "duration": 9600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -391,9 +496,12 @@
     "name": "strong_strength",
     "effects": [
       {
-        "effect": "strength",
+        "name": "strength",
         "duration": 1800,
-        "amplifier": 1
+        "amplifier": 1,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -402,9 +510,12 @@
     "name": "weakness",
     "effects": [
       {
-        "effect": "weakness",
+        "name": "weakness",
         "duration": 1800,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -413,9 +524,12 @@
     "name": "long_weakness",
     "effects": [
       {
-        "effect": "weakness",
+        "name": "weakness",
         "duration": 4800,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -424,9 +538,12 @@
     "name": "luck",
     "effects": [
       {
-        "effect": "luck",
+        "name": "luck",
         "duration": 6000,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -435,9 +552,12 @@
     "name": "slow_falling",
     "effects": [
       {
-        "effect": "slow_falling",
+        "name": "slow_falling",
         "duration": 1800,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -446,9 +566,12 @@
     "name": "long_slow_falling",
     "effects": [
       {
-        "effect": "slow_falling",
+        "name": "slow_falling",
         "duration": 4800,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -457,9 +580,12 @@
     "name": "wind_charged",
     "effects": [
       {
-        "effect": "wind_charged",
+        "name": "wind_charged",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -468,9 +594,12 @@
     "name": "weaving",
     "effects": [
       {
-        "effect": "weaving",
+        "name": "weaving",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -479,9 +608,12 @@
     "name": "oozing",
     "effects": [
       {
-        "effect": "oozing",
+        "name": "oozing",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   },
@@ -490,9 +622,12 @@
     "name": "infested",
     "effects": [
       {
-        "effect": "infested",
+        "name": "infested",
         "duration": 3600,
-        "amplifier": 0
+        "amplifier": 0,
+        "ambient": false,
+        "visible": true,
+        "show_icon": true
       }
     ]
   }

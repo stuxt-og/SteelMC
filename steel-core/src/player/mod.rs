@@ -69,6 +69,7 @@ use steel_registry::game_rules::GameRuleValue;
 use steel_registry::sound_event::SoundEventRef;
 use steel_registry::vanilla_block_tags::BlockTag;
 use steel_registry::vanilla_entity_data::PlayerEntityData;
+use steel_registry::vanilla_game_events::{ITEM_INTERACT_FINISH, ITEM_INTERACT_START};
 use steel_registry::vanilla_game_rules::{
     ADVANCE_TIME, IMMEDIATE_RESPAWN, KEEP_INVENTORY, MAX_ENTITY_CRAMMING, SHOW_DEATH_MESSAGES,
 };
@@ -104,15 +105,13 @@ use steel_protocol::packets::{
     common::SCustomPayload,
     game::{CContainerClose, CGameEvent, CSystemChat, GameEventType, PreviousMessage},
 };
+use steel_registry::data_components::vanilla_components;
 use steel_registry::item_stack::ItemStack;
 
-use steel_utils::console;
 use steel_utils::random;
 use steel_utils::{BlockPos, BlockStateId, ChunkPos, Identifier};
 
 use crate::inventory::{MenuInstance, container::Container, inventory_menu::InventoryMenu};
-
-use crate::behavior::InventoryAccess;
 
 /// Re-export `PreviousMessage` as `PreviousMessageEntry` for use in `signature_cache`
 pub type PreviousMessageEntry = PreviousMessage;
@@ -179,6 +178,7 @@ use crate::player::chunk_sender::ChunkSender;
 use crate::player::networking::JavaConnection;
 use crate::portal::TeleportTransition;
 use crate::world::World;
+use crate::world::game_event_context::GameEventContext;
 
 /// A struct representing a player.
 pub struct Player {
@@ -389,9 +389,11 @@ impl Player {
                     random::xoroshiro::Xoroshiro::new(unique_seed.0, unique_seed.1),
                 ))
             },
+
             use_item: SyncMutex::new(ItemStack::empty()),
             use_item_remaining: AtomicU32::new(0),
             use_item_hand: SyncMutex::new(InteractionHand::MainHand),
+
             pending_root_vehicle: SyncMutex::new(None),
         }
     }
@@ -456,7 +458,6 @@ impl Player {
             self.block_breaking.lock().tick(self, &world);
             self.apply_effects_from_blocks();
             self.push_entities(&world);
-            self.tick_using_item();
 
             // TODO: Implement remaining player ticking logic here
             // - Managing game mode specific logic
@@ -484,7 +485,12 @@ impl Player {
         self.refresh_dirty_attributes();
         self.tick_living_state();
 
+        self.tick_using_item();
+
+        self.sync_entity_data();
+
         self.broadcast_inventory_changes();
+
         self.update_pose();
 
         {
@@ -1316,29 +1322,77 @@ impl Player {
         living_data.living_entity_flags.set(new_value);
     }
 
-    /// Self-explanatory
-    pub fn start_using_item(&self, inv: &InventoryAccess, hand: InteractionHand) {
+    /// Starts using item in hand
+    /// # Panics
+    /// if player is in an invalid world
+    pub fn start_using_item(&self, hand: InteractionHand) {
         if !self.use_item.lock().is_empty() {
             return;
         }
 
-        inv.with_inventory(|inv| {
-            let item = inv.get_item_in_hand(hand);
-            let duration = item.get_use_duration();
-            if !item.is_empty() {
-                self.use_item_remaining.store(duration, Ordering::SeqCst);
-                *self.use_item.lock() = item.clone();
-                *self.use_item_hand.lock() = hand;
-                self.set_entity_flag(0x01, true);
-                self.set_entity_flag(0x02, hand == InteractionHand::OffHand);
-            }
-        });
+        let binding = self.inventory.lock();
+        let item = binding.get_item_in_hand(hand);
+        let duration = item.get_use_duration();
+        if !item.is_empty() {
+            self.use_item_remaining.store(duration, Ordering::SeqCst);
+            *self.use_item.lock() = item.clone();
+            *self.use_item_hand.lock() = hand;
+            self.set_entity_flag(0x01, true);
+            self.set_entity_flag(0x02, hand == InteractionHand::OffHand);
+        }
+
+        if item
+            .get(vanilla_components::USE_EFFECTS)
+            .expect("UseEffects component is not found")
+            .interaction_vibrations
+        {
+            self.level().expect("World is invalid").game_event(
+                &ITEM_INTERACT_START,
+                BlockPos::new(
+                    self.position().x as i32,
+                    self.position().y as i32,
+                    self.position().z as i32,
+                ),
+                &GameEventContext::new(Some(self), None),
+            );
+        }
+    }
+
+    /// Based on Java's ItemStack.applyAfterUseComponentSideEffects
+    pub fn apply_after_use_component_side_effects(&self, use_item: &ItemStack) -> ItemStack {
+        let stack_before_using = self.use_item.lock();
+
+        if let Some(use_remainder) = use_item.get(vanilla_components::USE_REMAINDER) {
+            return use_remainder.convert_into_remainder(
+                use_item,
+                stack_before_using.count(),
+                self.has_infinite_materials(),
+                |s| {
+                    self.add_item_or_drop(s.clone());
+                },
+            );
+        }
+
+        use_item.clone()
+
+        // TODO: handle cooldown
+        //if let Some(use_cooldown) = stack_before_using.get(vanilla_components::USE_COOLDOWN) {
+        //self.get_cooldowns().add(stack, use_cooldown.ticks());
+        //}
+    }
+
+    /// Stops using item in hand
+    pub fn stop_using_item(&self) {
+        *self.use_item.lock() = ItemStack::empty();
+        self.use_item_remaining.store(0, Ordering::SeqCst);
+        self.set_entity_flag(0x01, false);
+        self.set_entity_flag(0x02, false);
     }
 
     /// # Panics
     /// if player is in an invalid world
     pub fn tick_using_item(&self) {
-        let remaining = self.use_item_remaining.load(Ordering::SeqCst);
+        let mut remaining = self.use_item_remaining.load(Ordering::SeqCst);
 
         if remaining == 0 {
             return;
@@ -1354,38 +1408,86 @@ impl Player {
         };
 
         if !item_matches {
-            *self.use_item.lock() = ItemStack::empty();
-            self.use_item_remaining.store(0, Ordering::SeqCst);
-            self.set_entity_flag(0x01, false);
-            self.set_entity_flag(0x02, false);
+            self.stop_using_item();
+            return;
+        }
+
+        remaining = self.use_item_remaining.load(Ordering::SeqCst);
+        if remaining == 0 {
             return;
         }
 
         let new_remaining = remaining - 1;
-        self.use_item_remaining
-            .store(new_remaining, Ordering::SeqCst);
+
+        if self
+            .use_item_remaining
+            .compare_exchange(remaining, new_remaining, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return;
+        }
 
         if new_remaining != 0 {
             return;
         }
 
+        self.send_packet(CEntityEvent {
+            entity_id: self.id(),
+            event: EntityStatus::UseItemComplete,
+        });
+
         self.set_entity_flag(0x01, false);
         self.set_entity_flag(0x02, false);
 
-        {
+        if !self.has_infinite_materials() {
             let mut inv = self.inventory.lock();
             let item = inv.get_item_in_hand_mut(hand);
             if !item.is_empty() {
                 item.shrink(1);
-                if item.is_empty() {
-                    *item = ItemStack::empty();
-                }
+
+                let updated_item = self.apply_after_use_component_side_effects(item);
+
+                *item = updated_item;
             }
         }
 
-        self.food_data.lock().eat(1, 1.0);
-        let pitch = 0.9 + self.random.lock().next_f32() * 0.1;
-        self.play_sound(&sound_events::ENTITY_PLAYER_BURP, 0.5, pitch);
+        if cached_item
+            .get(vanilla_components::USE_EFFECTS)
+            .expect("UseEffects component is not found")
+            .interaction_vibrations
+        {
+            self.level().expect("World is invalid").game_event(
+                &ITEM_INTERACT_FINISH,
+                BlockPos::new(
+                    self.position().x as i32,
+                    self.position().y as i32,
+                    self.position().z as i32,
+                ),
+                &GameEventContext::new(Some(self), None),
+            );
+        }
+
+        if let Some(food_props) = cached_item.get(vanilla_components::FOOD) {
+            self.food_data
+                .lock()
+                .eat(food_props.nutrition, food_props.saturation);
+
+            let pitch = 0.9 + self.random.lock().next_f32() * 0.1;
+            self.play_sound(&sound_events::ENTITY_PLAYER_BURP, 0.5, pitch);
+        } else if let Some(potion_contents) = cached_item.get(vanilla_components::POTION_CONTENTS) {
+            let potion_effects = potion_contents
+                .potion
+                .iter()
+                .flat_map(|potion| potion.effects.resolve().iter());
+
+            potion_contents
+                .custom_effects
+                .iter()
+                .chain(potion_effects)
+                .for_each(|e| {
+                    self.set_mob_effect_instance(e);
+                });
+        }
 
         *self.use_item.lock() = ItemStack::empty();
     }

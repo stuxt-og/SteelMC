@@ -3,7 +3,10 @@
 //! This module provides the core types for storing component values in an ABI-stable way.
 //! Vanilla components get dedicated enum variants for zero-cost access, while plugin
 //! components use the `Other` variant with opaque bytes.
-use super::components::{Consumable, Equippable, FoodProperties, ItemEnchantments, Tool};
+use super::components::{
+    Consumable, Equippable, FoodProperties, ItemEnchantments, PotionContents, Tool, UseCooldown,
+    UseEffects, UseRemainder,
+};
 use text_components::TextComponent;
 
 /// Discriminant for [`ComponentData`] variants.
@@ -21,7 +24,11 @@ pub enum ComponentDataDiscriminant {
     Enchantments,
     TextComponent,
     FoodProperties,
+    PotionContents,
     Consumable,
+    UseRemainder,
+    UseCooldown,
+    UseEffects,
     Todo,
     Other,
 }
@@ -78,8 +85,16 @@ pub enum ComponentData {
     TextComponent(Box<TextComponent>),
     // minecraft:food_properties
     FoodProperties(FoodProperties),
+    // minecraft:potion_contents
+    PotionContents(PotionContents),
     // minecraft:consumable
     Consumable(Consumable),
+    // minecraft::use_ramainder
+    UseRemainder(UseRemainder),
+    // minecraft::use_cooldown
+    UseCooldown(UseCooldown),
+    // minecraft:use_effects
+    UseEffects(UseEffects),
 
     // ==================== Not yet implemented ====================
     /// Placeholder for components that aren't implemented yet.
@@ -121,7 +136,11 @@ impl ComponentData {
             Self::Enchantments(_) => ComponentDataDiscriminant::Enchantments,
             Self::TextComponent(_) => ComponentDataDiscriminant::TextComponent,
             Self::FoodProperties(_) => ComponentDataDiscriminant::FoodProperties,
+            Self::PotionContents(_) => ComponentDataDiscriminant::PotionContents,
             Self::Consumable(_) => ComponentDataDiscriminant::Consumable,
+            Self::UseRemainder(_) => ComponentDataDiscriminant::UseRemainder,
+            Self::UseCooldown(_) => ComponentDataDiscriminant::UseCooldown,
+            Self::UseEffects(_) => ComponentDataDiscriminant::UseEffects,
             Self::Todo => ComponentDataDiscriminant::Todo,
             Self::Other(_) => ComponentDataDiscriminant::Other,
         }
@@ -149,7 +168,11 @@ impl ComponentData {
             Self::Enchantments(v) => v.hash_component(&mut hasher),
             Self::TextComponent(v) => v.hash_component(&mut hasher),
             Self::FoodProperties(v) => v.hash_component(&mut hasher),
+            Self::PotionContents(v) => v.hash_component(&mut hasher),
             Self::Consumable(v) => v.hash_component(&mut hasher),
+            Self::UseRemainder(v) => v.hash_component(&mut hasher),
+            Self::UseCooldown(v) => v.hash_component(&mut hasher),
+            Self::UseEffects(v) => v.hash_component(&mut hasher),
 
             // Stub/plugin types - hash as empty map for now
             // TODO: Implement proper hashing when these types are implemented
@@ -384,6 +407,26 @@ impl Component for FoodProperties {
     }
 }
 
+impl Component for PotionContents {
+    fn into_data(self) -> ComponentData {
+        ComponentData::PotionContents(self)
+    }
+
+    fn from_data(data: ComponentData) -> Option<Self> {
+        match data {
+            ComponentData::PotionContents(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    fn from_data_ref(data: &ComponentData) -> Option<&Self> {
+        match data {
+            ComponentData::PotionContents(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
 impl Component for Consumable {
     fn into_data(self) -> ComponentData {
         ComponentData::Consumable(self)
@@ -399,6 +442,66 @@ impl Component for Consumable {
     fn from_data_ref(data: &ComponentData) -> Option<&Self> {
         match data {
             ComponentData::Consumable(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+impl Component for UseRemainder {
+    fn into_data(self) -> ComponentData {
+        ComponentData::UseRemainder(self)
+    }
+
+    fn from_data(data: ComponentData) -> Option<Self> {
+        match data {
+            ComponentData::UseRemainder(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    fn from_data_ref(data: &ComponentData) -> Option<&Self> {
+        match data {
+            ComponentData::UseRemainder(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+impl Component for UseCooldown {
+    fn into_data(self) -> ComponentData {
+        ComponentData::UseCooldown(self)
+    }
+
+    fn from_data(data: ComponentData) -> Option<Self> {
+        match data {
+            ComponentData::UseCooldown(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    fn from_data_ref(data: &ComponentData) -> Option<&Self> {
+        match data {
+            ComponentData::UseCooldown(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+impl Component for UseEffects {
+    fn into_data(self) -> ComponentData {
+        ComponentData::UseEffects(self)
+    }
+
+    fn from_data(data: ComponentData) -> Option<Self> {
+        match data {
+            ComponentData::UseEffects(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    fn from_data_ref(data: &ComponentData) -> Option<&Self> {
+        match data {
+            ComponentData::UseEffects(v) => Some(v),
             _ => None,
         }
     }

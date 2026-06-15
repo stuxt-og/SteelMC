@@ -6,7 +6,9 @@ use glam::DVec3;
 use rustc_hash::FxHashSet;
 use simdnbt::borrow::BaseNbtCompound;
 use simdnbt::owned::NbtCompound;
-use steel_protocol::packets::game::{AttributeSnapshot, CEntityEvent, SoundSource};
+use steel_protocol::packets::game::{
+    AttributeSnapshot, CEntityEvent, CRemoveMobEffect, CUpdateMobEffect, SoundSource,
+};
 use steel_registry::blocks::{
     block_state_ext::BlockStateExt as _, properties::BlockStateProperties,
     shapes::is_shape_full_block,
@@ -16,7 +18,7 @@ use steel_registry::entity_data::{DataValue, EntityPose};
 use steel_registry::entity_type::{EntityAttachment, EntityTypeRef};
 use steel_registry::fluid::FluidState;
 use steel_registry::item_stack::ItemStack;
-use steel_registry::mob_effect::MobEffectRef;
+use steel_registry::mob_effect::{MobEffectInstance, MobEffectRef};
 use steel_registry::sound_event::SoundEventRef;
 use steel_registry::vanilla_block_tags::BlockTag;
 use steel_registry::vanilla_blocks;
@@ -602,7 +604,7 @@ pub use fluid_contact::EntityFluidContact;
 pub use inside_block_effects::{
     InsideBlockEffectCallback, InsideBlockEffectCollector, InsideBlockEffectType,
 };
-pub use living_base::{ActiveMobEffect, DEATH_DURATION, LivingEntityBase, LivingTravelInput};
+pub use living_base::{DEATH_DURATION, LivingEntityBase, LivingTravelInput};
 pub use manager::{
     AddEntityError, ChunkEntityLoadResult, EntityMoveError, EntityMoveUpdate, EntityOwnership,
     WorldEntityManager,
@@ -2958,18 +2960,125 @@ pub trait LivingEntity: Entity {
     }
 
     /// Returns vanilla `LivingEntity.getEffect()`.
-    fn mob_effect(&self, effect: MobEffectRef) -> Option<ActiveMobEffect> {
+    fn mob_effect(&self, effect: MobEffectRef) -> Option<MobEffectInstance> {
         self.living_base().mob_effect(effect)
     }
 
     /// Sets active vanilla mob-effect state.
     fn set_mob_effect(&self, effect: MobEffectRef, amplifier: i32) {
         self.living_base().set_mob_effect(effect, amplifier);
+
+        if let Some(level) = self.level() {
+            level.broadcast_to_nearby(
+                ChunkPos::from_entity_pos(self.position()),
+                CUpdateMobEffect::new(
+                    self.id(),
+                    *REGISTRY.mob_effects.effect_id_by_key(&effect.key) as i32,
+                    amplifier,
+                    None,
+                    CUpdateMobEffect::make_flags(
+                        false,
+                        true,
+                        true,
+                        self.living_base().has_mob_effect(effect),
+                    ),
+                ),
+                None,
+            );
+        }
     }
 
     /// Sets the presence of a vanilla mob effect.
     fn set_mob_effect_active(&self, effect: MobEffectRef, active: bool) {
         self.living_base().set_mob_effect_active(effect, active);
+
+        if let Some(level) = self.level() {
+            let chunk_pos = ChunkPos::from_entity_pos(self.position());
+
+            if active {
+                level.broadcast_to_nearby(
+                    chunk_pos,
+                    CUpdateMobEffect::new(
+                        self.id(),
+                        *REGISTRY.mob_effects.effect_id_by_key(&effect.key) as i32,
+                        0,
+                        None,
+                        CUpdateMobEffect::make_flags(
+                            false,
+                            true,
+                            true,
+                            self.living_base().has_mob_effect(effect),
+                        ),
+                    ),
+                    None,
+                );
+            } else {
+                level.broadcast_to_nearby(
+                    chunk_pos,
+                    CRemoveMobEffect::new(self.id(), effect.key.clone()),
+                    None,
+                );
+            }
+        }
+    }
+
+    /// Sets active vanilla mob-effect instance state.
+    fn set_mob_effect_instance(&self, instance: &MobEffectInstance) {
+        self.living_base().set_mob_effect_instance(instance);
+
+        if let Some(level) = self.level() {
+            level.broadcast_to_nearby(
+                ChunkPos::from_entity_pos(self.position()),
+                CUpdateMobEffect::new(
+                    self.id(),
+                    *REGISTRY.mob_effects.effect_id_by_key(instance.key()) as i32,
+                    instance.amplifier(),
+                    instance.duration(),
+                    CUpdateMobEffect::make_flags(
+                        false,
+                        true,
+                        true,
+                        self.living_base().has_mob_effect(instance.effect()),
+                    ),
+                ),
+                None,
+            );
+        }
+    }
+
+    /// Sets the presence of a vanilla mob effect.
+    fn set_mob_effect_instance_active(&self, instance: &MobEffectInstance, active: bool) {
+        self.living_base()
+            .set_mob_effect_instance_active(instance, active);
+
+        if let Some(level) = self.level() {
+            let chunk_pos = ChunkPos::from_entity_pos(self.position());
+
+            if active {
+                level.broadcast_to_nearby(
+                    chunk_pos,
+                    CUpdateMobEffect::new(
+                        self.id(),
+                        *REGISTRY.mob_effects.effect_id_by_key(instance.key()) as i32,
+                        instance.amplifier(),
+                        instance.duration(),
+                        CUpdateMobEffect::make_flags(
+                            false,
+                            true,
+                            true,
+                            self.living_base().has_mob_effect(instance.effect()),
+                        ),
+                    ),
+                    None,
+                );
+            } else {
+                level.broadcast_to_nearby(
+                    chunk_pos,
+                    CRemoveMobEffect::new(self.id(), instance.key().clone()),
+                    None,
+                );
+            }
+        }
     }
 
     /// Returns vanilla `LivingEntity.isAffectedByFluids()`.

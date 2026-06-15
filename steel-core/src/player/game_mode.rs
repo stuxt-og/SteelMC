@@ -509,6 +509,8 @@ impl Player {
             }
             PlayerAction::ReleaseUseItem => {
                 // TODO: Implement release use item (releasing bow, etc.)
+                println!("[packet] ReleaseUseItem received");
+                self.stop_using_item();
                 log::debug!("Player {} released use item", self.gameprofile.name);
             }
             PlayerAction::SwapItemWithOffhand => {

@@ -18,20 +18,18 @@ mod standing_and_wall_block_item;
 
 mod flint_and_steel;
 
-mod food;
-mod potion;
+mod consumable;
 
 pub use axe::AxeItem;
 pub use block_item::{BlockItem, DoubleHighBlockItem};
 pub use bonemeal::BoneMealItem;
 pub use bucket::BucketItem;
+pub use consumable::ConsumableItem;
 pub use default::DefaultItemBehavior;
 pub use ender_eye::EnderEyeItem;
 pub use flint_and_steel::{FireChargeItem, FlintAndSteelItem};
-pub use food::FoodItem;
 pub use hoe::HoeItem;
 pub use honeycomb::HoneycombItem;
-pub use potion::PotionItem;
 pub use shovel::ShovelItem;
 pub use sign_item::{HangingSignItem, SignItem};
 pub use standing_and_wall_block_item::StandingAndWallBlockItem;

@@ -73,6 +73,8 @@ mod poi_type_tags;
 mod shared_structs;
 mod tag_utils;
 
+mod potions;
+
 const FMT: bool = cfg!(feature = "fmt");
 
 const ATTRIBUTES: &str = "attributes";
@@ -144,6 +146,8 @@ const WORLD_CLOCKS: &str = "world_clocks";
 const CARVERS: &str = "configured_carvers";
 const CONFIGURED_FEATURES: &str = "configured_features";
 const PLACED_FEATURES: &str = "placed_features";
+
+const POTIONS: &str = "potions";
 
 pub fn main() {
     // Rerun build script when any file in the build/ directory changes
@@ -227,6 +231,7 @@ pub fn main() {
         (carvers::build(), CARVERS),
         (features::build_configured(), CONFIGURED_FEATURES),
         (features::build_placed(), PLACED_FEATURES),
+        (potions::build(), POTIONS),
     ];
 
     // Track which files we're generating this run

@@ -7,7 +7,7 @@
 
 use rustc_hash::FxHashMap;
 use steel_registry::entity_type::EntityTypeRef;
-use steel_registry::mob_effect::MobEffectRef;
+use steel_registry::mob_effect::{LazyMobEffect, MobEffectInstance, MobEffectRef};
 use steel_registry::vanilla_attributes;
 use steel_registry::vanilla_entity_data::VanillaLivingEntityData;
 use steel_utils::locks::SyncMutex;
@@ -19,36 +19,6 @@ use crate::inventory::equipment::EntityEquipment;
 /// Duration in ticks of the death animation before entity removal.
 pub const DEATH_DURATION: i32 = 20;
 const SPRINT_SPEED_MODIFIER_AMOUNT: f64 = 0.3;
-
-/// Runtime mob-effect state currently needed by living physics.
-///
-/// TODO: Extend this into full vanilla `MobEffectInstance` state with duration,
-/// ambience, visibility, hidden effects, attribute modifiers, ticking, and sync.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ActiveMobEffect {
-    effect: MobEffectRef,
-    amplifier: i32,
-}
-
-impl ActiveMobEffect {
-    /// Creates active mob-effect state.
-    #[must_use]
-    pub const fn new(effect: MobEffectRef, amplifier: i32) -> Self {
-        Self { effect, amplifier }
-    }
-
-    /// Returns the mob effect.
-    #[must_use]
-    pub const fn effect(self) -> MobEffectRef {
-        self.effect
-    }
-
-    /// Returns vanilla `MobEffectInstance.getAmplifier()`.
-    #[must_use]
-    pub const fn amplifier(self) -> i32 {
-        self.amplifier
-    }
-}
 
 /// Movement input stored on vanilla `LivingEntity`.
 ///
@@ -163,7 +133,7 @@ impl LivingEntityState {
 pub struct LivingEntityBase {
     state: SyncMutex<LivingEntityState>,
     attributes: SyncMutex<AttributeMap>,
-    active_mob_effects: SyncMutex<FxHashMap<MobEffectRef, ActiveMobEffect>>,
+    active_mob_effects: SyncMutex<FxHashMap<MobEffectRef, MobEffectInstance>>,
     equipment: SyncMutex<EntityEquipment>,
 }
 
@@ -219,24 +189,45 @@ impl LivingEntityBase {
 
     /// Returns active vanilla mob-effect state.
     #[must_use]
-    pub fn mob_effect(&self, effect: MobEffectRef) -> Option<ActiveMobEffect> {
-        self.active_mob_effects.lock().get(&effect).copied()
+    pub fn mob_effect(&self, effect: MobEffectRef) -> Option<MobEffectInstance> {
+        self.active_mob_effects.lock().get(&effect).cloned()
     }
 
     /// Sets active vanilla mob-effect state.
     pub fn set_mob_effect(&self, effect: MobEffectRef, amplifier: i32) {
-        self.active_mob_effects
-            .lock()
-            .insert(effect, ActiveMobEffect::new(effect, amplifier));
+        self.active_mob_effects.lock().insert(
+            effect,
+            MobEffectInstance::new(LazyMobEffect::Resolved(effect), amplifier),
+        );
     }
 
     /// Sets the presence of a vanilla mob effect.
     pub fn set_mob_effect_active(&self, effect: MobEffectRef, active: bool) {
         let mut effects = self.active_mob_effects.lock();
         if active {
-            effects.insert(effect, ActiveMobEffect::new(effect, 0));
+            effects.insert(
+                effect,
+                MobEffectInstance::new(LazyMobEffect::Resolved(effect), 0),
+            );
         } else {
             effects.remove(&effect);
+        }
+    }
+
+    /// Sets active vanilla mob-effect instance.
+    pub fn set_mob_effect_instance(&self, instance: &MobEffectInstance) {
+        self.active_mob_effects
+            .lock()
+            .insert(instance.effect(), instance.clone());
+    }
+
+    /// Sets the presence of a vanilla mob effect instance.
+    pub fn set_mob_effect_instance_active(&self, instance: &MobEffectInstance, active: bool) {
+        let mut effects = self.active_mob_effects.lock();
+        if active {
+            effects.insert(instance.effect(), instance.clone());
+        } else {
+            effects.remove(&instance.effect());
         }
     }
 
@@ -519,7 +510,7 @@ mod tests {
 
     use crate::inventory::equipment::EquipmentSlot;
 
-    use super::{ActiveMobEffect, LivingEntityBase, LivingTravelInput};
+    use super::{LazyMobEffect, LivingEntityBase, LivingTravelInput, MobEffectInstance};
 
     #[test]
     fn living_constructor_initializes_health_from_max_health() {
@@ -684,7 +675,10 @@ mod tests {
         assert!(base.has_mob_effect(vanilla_mob_effects::DOLPHINS_GRACE));
         assert_eq!(
             base.mob_effect(vanilla_mob_effects::DOLPHINS_GRACE),
-            Some(ActiveMobEffect::new(vanilla_mob_effects::DOLPHINS_GRACE, 0))
+            Some(MobEffectInstance::new(
+                LazyMobEffect::Resolved(vanilla_mob_effects::DOLPHINS_GRACE),
+                0
+            ))
         );
         base.set_mob_effect_active(vanilla_mob_effects::DOLPHINS_GRACE, false);
         assert!(!base.has_mob_effect(vanilla_mob_effects::DOLPHINS_GRACE));
@@ -699,7 +693,10 @@ mod tests {
 
         assert_eq!(
             base.mob_effect(vanilla_mob_effects::JUMP_BOOST),
-            Some(ActiveMobEffect::new(vanilla_mob_effects::JUMP_BOOST, 2))
+            Some(MobEffectInstance::new(
+                LazyMobEffect::Resolved(vanilla_mob_effects::JUMP_BOOST),
+                2
+            ))
         );
     }
 

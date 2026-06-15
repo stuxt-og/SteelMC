@@ -8,9 +8,9 @@ use steel_registry::item_stack::ItemStack;
 
 /// Behavior for items that are food
 #[item_behavior]
-pub struct FoodItem;
+pub struct ConsumableItem;
 
-impl FoodItem {
+impl ConsumableItem {
     fn can_consume(user: &Player, stack: &ItemStack) -> bool {
         let mut can_always_eat = false;
 
@@ -44,42 +44,24 @@ impl FoodItem {
     //     // if data.has_consume_particles {
     //     //     player.spawn_item_particles(item_stack, particle_count);
     //     // }
-    //
-    //     // player.play_sound(
-    //     //     REGISTRY
-    //     //         .sound_events
-    //     //         .get()
-    //     //         .unwrap()
-    //     //         .sound_events_by_id
-    //     //         .get(sound_events::ENTITY_PLAYER_BURP),
-    //     //     0.5,
-    //     //     0.9 + random.next_f32() * 0.1,
-    //     // );
     // }
 }
 
-impl ItemBehavior for FoodItem {
+impl ItemBehavior for ConsumableItem {
     fn use_item(&self, context: &mut UseItemContext) -> InteractionResult {
-        // let (existing_handler, data) = if let Some(consumable) = stack.get(CONSUMABLE) {
-        //     (consumable.handler.clone(), consumable.data.clone())
-        // } else {
-        //     println!("TODO: add Consumable component to FoodItems");
-        //     return InteractionResult::Pass;
-        // };
+        {
+            let Some(binding) = context.player.inventory.try_lock() else {
+                println!("Deadlock!");
+                return InteractionResult::Pass;
+            };
 
-        let Some(binding) = context.player.inventory.try_lock() else {
-            println!("Deadlock!");
-            return InteractionResult::Fail;
-        };
-
-        if !Self::can_consume(context.player, binding.get_item_in_hand(context.hand)) {
-            return InteractionResult::Fail;
+            if !Self::can_consume(context.player, binding.get_item_in_hand(context.hand)) {
+                return InteractionResult::Pass;
+            }
         }
 
-        drop(binding);
+        context.player.start_using_item(context.hand);
 
-        context.player.start_using_item(&context.inv, context.hand);
-
-        InteractionResult::Success
+        InteractionResult::Consume
     }
 }

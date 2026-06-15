@@ -11,7 +11,8 @@ use steel_utils::{
     serial::{ReadFrom, WriteTo},
 };
 
-use crate::items::item::{ConsumeEffect, ItemUseAnimation};
+use crate::data_components::components::ConsumeEffect;
+use crate::items::item::ItemUseAnimation;
 
 use simdnbt::owned::{NbtCompound, NbtTag};
 
@@ -109,7 +110,7 @@ impl simdnbt::FromNbtTag for Consumable {
                     "{}",
                     err.to_string() + ". Defaulting to ItemUseAnimation::None."
                 );
-                ItemUseAnimation::None
+                ItemUseAnimation::Eat
             }),
             has_consume_particles: compound.get("has_consume_particles")?.byte()? != 0,
             on_consume_effects: effects,
@@ -138,93 +139,11 @@ impl simdnbt::ToNbtTag for Consumable {
     }
 }
 
-// pub struct ConsumableComponent {
-//     pub data: ConsumableData,
-// }
-//
-// impl ConsumableComponent {
-//     pub fn new(data: ConsumableData) -> Self {
-//         Self {
-//             data,
-//         }
-//     }
-//
-//     pub fn with_handler(&mut self, handler: impl Consumable + 'static) {
-//         self.handler = Some(Arc::new(handler));
-//     }
-//
-//     pub fn is_handler_set(&self) -> bool {
-//         self.handler.is_some()
-//     }
-//
-//     pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
-//         self.handler.as_deref()?.as_any().downcast_ref::<T>()
-//     }
-//
-//     pub fn consume_ticks(data: &ConsumableData) -> u32 {
-//         (data.consume_seconds * 20.0) as u32
-//     }
-// }
-
-// // Manually implementing Debug, PartialEq, Clone because of handler field
-// impl fmt::Debug for ConsumableComponent {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         f.debug_struct("ConsumableComponent")
-//             .field("data", &self.data)
-//             .field("handler", &"Arc<dyn Consumable>")
-//             .finish()
-//     }
-// }
-
-// impl PartialEq for ConsumableComponent {
-//     fn eq(&self, other: &Self) -> bool {
-//         self.data == other.data
-//     }
-// }
-//
-// impl Clone for ConsumableComponent {
-//     fn clone(&self) -> Self {
-//         Self {
-//             data: self.data.clone(),
-//         }
-//     }
-// }
-
 impl HashComponent for Consumable {
     fn hash_component(&self, hasher: &mut ComponentHasher) {
         // For now, hash as empty map since full implementation requires proper codec
         hasher.start_map();
-        // TODO: Add proper field hashing when Tool codec is implemented
+        // TODO: Add proper field hashing when Consumable codec is implemented
         hasher.end_map();
     }
 }
-
-// impl ReadFrom for ConsumableComponent {
-//     fn read(data: &mut Cursor<&[u8]>) -> Result<Self> {
-//         Ok(Self {
-//             data: ConsumableData::read(data)?,
-//         })
-//     }
-// }
-
-// impl WriteTo for ConsumableComponent {
-//     fn write(&self, writer: &mut impl Write) -> Result<()> {
-//         self.data.write(writer)?;
-//
-//         Ok(())
-//     }
-// }
-
-// impl simdnbt::FromNbtTag for ConsumableComponent {
-//     fn from_nbt_tag(tag: simdnbt::borrow::NbtTag) -> Option<Self> {
-//         Some(Self {
-//             data: ConsumableData::from_nbt_tag(tag)?,
-//         })
-//     }
-// }
-//
-// impl simdnbt::ToNbtTag for ConsumableComponent {
-//     fn to_nbt_tag(self) -> simdnbt::owned::NbtTag {
-//         self.data.to_nbt_tag()
-//     }
-// }

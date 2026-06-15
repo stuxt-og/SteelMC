@@ -11043,10 +11043,7 @@
     },
     {
       "name": "apple",
-      "nutrition": 4,
-      "saturation": 2.4,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "bow",
@@ -11262,10 +11259,7 @@
     },
     {
       "name": "mushroom_stew",
-      "nutrition": 6,
-      "saturation": 7.2000003,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "string",
@@ -11291,10 +11285,7 @@
     },
     {
       "name": "bread",
-      "nutrition": 5,
-      "saturation": 6.0,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "leather_helmet",
@@ -11414,17 +11405,11 @@
     },
     {
       "name": "porkchop",
-      "nutrition": 3,
-      "saturation": 1.8000001,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "cooked_porkchop",
-      "nutrition": 8,
-      "saturation": 12.8,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "painting",
@@ -11442,17 +11427,11 @@
     },
     {
       "name": "golden_apple",
-      "nutrition": 4,
-      "saturation": 9.6,
-      "can_always_eat": true,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "enchanted_golden_apple",
-      "nutrition": 4,
-      "saturation": 9.6,
-      "can_always_eat": true,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "oak_sign",
@@ -11882,45 +11861,27 @@
     },
     {
       "name": "cod",
-      "nutrition": 2,
-      "saturation": 0.4,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "salmon",
-      "nutrition": 2,
-      "saturation": 0.4,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "tropical_fish",
-      "nutrition": 1,
-      "saturation": 0.2,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "pufferfish",
-      "nutrition": 1,
-      "saturation": 0.2,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "cooked_cod",
-      "nutrition": 5,
-      "saturation": 6.0,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "cooked_salmon",
-      "nutrition": 6,
-      "saturation": 9.6,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "ink_sac",
@@ -12098,10 +12059,7 @@
     },
     {
       "name": "cookie",
-      "nutrition": 2,
-      "saturation": 0.4,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "crafter",
@@ -12118,17 +12076,11 @@
     },
     {
       "name": "melon_slice",
-      "nutrition": 2,
-      "saturation": 1.2,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "dried_kelp",
-      "nutrition": 1,
-      "saturation": 0.6,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "pumpkin_seeds",
@@ -12142,38 +12094,23 @@
     },
     {
       "name": "beef",
-      "nutrition": 3,
-      "saturation": 1.8000001,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "cooked_beef",
-      "nutrition": 8,
-      "saturation": 12.8,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "chicken",
-      "nutrition": 2,
-      "saturation": 1.2,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "cooked_chicken",
-      "nutrition": 6,
-      "saturation": 7.2000003,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "rotten_flesh",
-      "nutrition": 4,
-      "saturation": 0.8,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "ender_pearl",
@@ -12202,14 +12139,11 @@
     },
     {
       "name": "potion",
-      "class": "PotionItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "spider_eye",
-      "nutrition": 2,
-      "saturation": 3.2,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "fermented_spider_eye",
@@ -12652,33 +12586,21 @@
     },
     {
       "name": "carrot",
-      "nutrition": 3,
-      "saturation": 3.6000001,
-      "can_always_eat": false,
-      "class": "FoodItem",
+      "class": "ConsumableItem",
       "block": "carrots"
     },
     {
       "name": "potato",
-      "nutrition": 1,
-      "saturation": 0.6,
-      "can_always_eat": false,
-      "class": "FoodItem",
+      "class": "ConsumableItem",
       "block": "potatoes"
     },
     {
       "name": "baked_potato",
-      "nutrition": 5,
-      "saturation": 6.0,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "poisonous_potato",
-      "nutrition": 2,
-      "saturation": 1.2,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "map",
@@ -12686,10 +12608,7 @@
     },
     {
       "name": "golden_carrot",
-      "nutrition": 6,
-      "saturation": 14.400001,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "skeleton_skull",
@@ -12746,10 +12665,7 @@
     },
     {
       "name": "pumpkin_pie",
-      "nutrition": 8,
-      "saturation": 4.8,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "firework_rocket",
@@ -12781,24 +12697,15 @@
     },
     {
       "name": "rabbit",
-      "nutrition": 3,
-      "saturation": 1.8000001,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "cooked_rabbit",
-      "nutrition": 5,
-      "saturation": 6.0,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "rabbit_stew",
-      "nutrition": 10,
-      "saturation": 12.0,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "rabbit_foot",
@@ -12860,17 +12767,11 @@
     },
     {
       "name": "mutton",
-      "nutrition": 2,
-      "saturation": 1.2,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "cooked_mutton",
-      "nutrition": 6,
-      "saturation": 9.6,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "white_banner",
@@ -12990,10 +12891,7 @@
     },
     {
       "name": "chorus_fruit",
-      "nutrition": 4,
-      "saturation": 2.4,
-      "can_always_eat": true,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "popped_chorus_fruit",
@@ -13011,10 +12909,7 @@
     },
     {
       "name": "beetroot",
-      "nutrition": 1,
-      "saturation": 1.2,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "beetroot_seeds",
@@ -13023,10 +12918,7 @@
     },
     {
       "name": "beetroot_soup",
-      "nutrition": 6,
-      "saturation": 7.2000003,
-      "can_always_eat": false,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "dragon_breath",
@@ -13232,10 +13124,7 @@
     },
     {
       "name": "suspicious_stew",
-      "nutrition": 6,
-      "saturation": 7.2000003,
-      "can_always_eat": true,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "loom",
@@ -13388,18 +13277,12 @@
     },
     {
       "name": "sweet_berries",
-      "nutrition": 2,
-      "saturation": 0.4,
-      "can_always_eat": false,
-      "class": "FoodItem",
+      "class": "ConsumableItem",
       "block": "sweet_berry_bush"
     },
     {
       "name": "glow_berries",
-      "nutrition": 2,
-      "saturation": 0.4,
-      "can_always_eat": false,
-      "class": "FoodItem",
+      "class": "ConsumableItem",
       "block": "cave_vines"
     },
     {
@@ -13433,10 +13316,7 @@
     },
     {
       "name": "honey_bottle",
-      "nutrition": 6,
-      "saturation": 1.2,
-      "can_always_eat": true,
-      "class": "FoodItem"
+      "class": "ConsumableItem"
     },
     {
       "name": "honeycomb_block",
@@ -14004,8 +13884,7 @@
     },
     {
       "name": "ominous_bottle",
-      "class": "PotionItem",
-      "ominousness_value": 0
+      "class": "Item"
     }
   ]
 }

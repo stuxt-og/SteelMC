@@ -1,3 +1,4 @@
+/// Generates the TokenStream for a ConsumeEffect from JSON data.
 use std::{collections::BTreeMap, fs};
 
 use heck::ToShoutySnakeCase;
@@ -65,6 +66,278 @@ fn generate_tool_component(value: &Value) -> TokenStream {
             damage_per_block: #damage_per_block,
             can_destroy_blocks_in_creative: #can_destroy_blocks_in_creative,
         }
+    }
+}
+
+/// Generates the TokenStream for a Consumable component from JSON data.
+fn generate_consumable_component(value: &Value) -> TokenStream {
+    let consume_seconds = value
+        .get("consume_seconds")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(1.6) as f32;
+
+    let anim = value
+        .get("animation")
+        .and_then(|a| a.as_str())
+        .unwrap_or("eat");
+
+    let has_consume_particles = value
+        .get("has_consume_particles")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let on_consume_effects_tokens = match value.get("on_consume_effects") {
+        Some(effects_value) => {
+            if let Some(effects_array) = effects_value.as_array() {
+                let effect_tokens: Vec<TokenStream> = effects_array
+                    .iter()
+                    .map(generate_consume_effect_tokens)
+                    .collect();
+                quote! { vec![ #(#effect_tokens),* ] }
+            } else {
+                let effect_tokens = generate_consume_effect_tokens(effects_value);
+                quote! { vec![ #effect_tokens ] }
+            }
+        }
+        None => quote! { vec![] },
+    };
+
+    quote! {
+        vanilla_components::Consumable {
+            consume_seconds: #consume_seconds,
+            animation: ItemUseAnimation::from_str(#anim).unwrap(),
+            has_consume_particles: #has_consume_particles,
+            on_consume_effects: #on_consume_effects_tokens,
+        }
+    }
+}
+
+/// Generates the TokenStream for a FoodProperties component from JSON data.
+fn generate_food_properties_component(value: &Value) -> TokenStream {
+    let nutrition = value.get("nutrition").and_then(|n| n.as_i64()).unwrap() as i32;
+
+    let saturation = value.get("saturation").and_then(|v| v.as_f64()).unwrap() as f32;
+
+    let can_always_eat = value
+        .get("can_always_eat")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    quote! {
+        vanilla_components::FoodProperties {
+            nutrition: #nutrition,
+            saturation: #saturation,
+            can_always_eat: #can_always_eat
+        }
+    }
+}
+
+/// Generates the TokenStream for a UseCooldown component from JSON data
+fn generate_use_cooldown_component(value: &Value) -> TokenStream {
+    let seconds = value.get("seconds").and_then(|v| v.as_f64()).unwrap() as f32;
+
+    let opt_cooldown_group = value.get("cooldown_group");
+
+    if let Some(cooldown_group_val) = opt_cooldown_group {
+        let cooldown_group = cooldown_group_val.as_str();
+
+        quote! {
+            vanilla_components::UseCooldown {
+                seconds: #seconds,
+                cooldown_group: Some(Identifier::vanilla_static(#cooldown_group)),
+            }
+        }
+    } else {
+        quote! {
+            vanilla_components::UseCooldown {
+                seconds: #seconds,
+                cooldown_group: None,
+            }
+        }
+    }
+}
+
+/// Generates the TokenStream for a UseRemainder from JSON data
+fn generate_use_remainder_component(value: &Value) -> TokenStream {
+    let id = value.get("id").and_then(|v| v.as_str()).unwrap();
+
+    quote! {
+        vanilla_components::UseRemainder::new(
+            Identifier::vanilla_static(#id)
+        )
+    }
+}
+
+/// Generates the TokenStream for a UseEffects component from JSON data.
+fn generate_use_effects_component(value: &Value) -> TokenStream {
+    let can_sprint = value
+        .get("can_sprint")
+        .and_then(|n| n.as_bool())
+        .unwrap_or(false);
+
+    let interaction_vibrations = value
+        .get("interaction_vibrations")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+
+    let speed_multiplier = value
+        .get("speed_multiplier")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.2) as f32;
+
+    quote! {
+        vanilla_components::UseEffects {
+            can_sprint: #can_sprint,
+            interaction_vibrations: #interaction_vibrations,
+            speed_multiplier: #speed_multiplier
+        }
+    }
+}
+
+/// Generates the TokenStream for a MobEffectInstance from JSON data.
+fn generate_mob_effect_instance_tokens(value: &Value) -> TokenStream {
+    let id_str = value
+        .get("id")
+        .and_then(|v| v.as_str())
+        .expect("effect id must be string");
+
+    let amplifier = value.get("amplifier").and_then(|v| v.as_u64()).unwrap_or(0) as i32;
+
+    let duration = value.get("duration").and_then(|v| v.as_u64()).unwrap_or(0) as i32;
+
+    let ambient = value
+        .get("ambient")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let visible = value
+        .get("visible")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+
+    let show_icon = value
+        .get("show_icon")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+
+    let duration = if duration == -1 {
+        quote! { Some(#duration) }
+    } else {
+        quote! { None }
+    };
+
+    let hidden_effect_opt = value.get("hidden_effect");
+
+    if let Some(hidden_effect) = hidden_effect_opt {
+        let effect = generate_mob_effect_instance_tokens(hidden_effect);
+
+        quote! {
+            MobEffectInstance::new(
+                LazyMobEffect::Raw(Identifier::vanilla_static(#id_str)),
+                #amplifier
+            )
+            .with_duration(#duration)
+            .with_ambient(#ambient)
+            .with_visible(#visible)
+            .with_show_icon(#show_icon)
+            .with_hidden_effect(Some(Box::new( #effect ))),
+        }
+    } else {
+        quote! {
+            MobEffectInstance::new(
+                LazyMobEffect::Raw(Identifier::vanilla_static(#id_str)),
+                #amplifier
+            )
+            .with_duration(#duration)
+            .with_ambient(#ambient)
+            .with_visible(#visible)
+            .with_show_icon(#show_icon),
+        }
+    }
+}
+
+/// Generates the TokenStream for a ConsumeEffect from JSON data.
+fn generate_consume_effect_tokens(value: &Value) -> TokenStream {
+    let obj = value.as_object().expect("ConsumeEffect must be an object");
+    let type_str = obj
+        .get("type")
+        .and_then(|v| v.as_str())
+        .expect("Missing 'type' field in ConsumeEffect");
+
+    match type_str {
+        "minecraft:apply_effects" => {
+            let effects_array = obj
+                .get("effects")
+                .expect("Missing 'effects' for apply_effects")
+                .as_array()
+                .expect("effects must be an array");
+
+            let effect_instances: Vec<TokenStream> = effects_array
+                .iter()
+                .map(generate_mob_effect_instance_tokens)
+                .collect();
+
+            quote! {
+                ConsumeEffect::ApplyEffects {
+                    effects: vec![ #(#effect_instances)* ]
+                }
+            }
+        }
+
+        "minecraft:remove_effects" => {
+            let effects_val = obj
+                .get("effects")
+                .expect("Missing 'effects' for remove_effects");
+            let effect_ids: Vec<TokenStream> = if let Some(arr) = effects_val.as_array() {
+                arr.iter()
+                    .map(|v| {
+                        let name = v.as_str().expect("effect must be string");
+                        quote! { LazyMobEffect::Raw(Identifier::vanilla_static(#name)) }
+                    })
+                    .collect()
+            } else if effects_val.as_str().is_some() {
+                let name = effects_val
+                    .as_str()
+                    .expect("Invalid effects field for remove_effects");
+                vec![quote! { LazyMobEffect::Raw(Identifier::vanilla_static(#name)) }]
+            } else {
+                panic!("Invalid effects field for remove_effects");
+            };
+
+            quote! {
+                ConsumeEffect::RemoveEffects {
+                    effects: vec![ #(#effect_ids),* ]
+                }
+            }
+        }
+
+        "minecraft:clear_all_effects" => {
+            quote! { ConsumeEffect::ClearAllEffects }
+        }
+
+        "minecraft:teleport_randomly" => {
+            let diameter = obj.get("diameter").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
+            quote! {
+                ConsumeEffect::TeleportRandomly {
+                    diameter: #diameter
+                }
+            }
+        }
+
+        "minecraft:play_sound" => {
+            let sound_event = obj
+                .get("sound")
+                .and_then(|v| v.as_str())
+                .expect("Missing sound for play_sound");
+
+            quote! {
+                ConsumeEffect::PlaySound {
+                    sound_event: #sound_event.to_string()
+                }
+            }
+        }
+
+        _ => panic!("Unknown ConsumeEffect type: {}", type_str),
     }
 }
 
@@ -236,6 +509,32 @@ fn generate_builder_calls(item: &Item) -> Vec<TokenStream> {
                 builder_calls
                     .push(quote! { .builder_set(vanilla_components::TOOL, Some(#tool_token)) });
             }
+            "minecraft:food" => {
+                let food_props_token = generate_food_properties_component(value);
+                builder_calls.push(
+                    quote! { .builder_set(vanilla_components::FOOD, Some(#food_props_token)) },
+                );
+            }
+            "minecraft:consumable" => {
+                let consumable_token = generate_consumable_component(value);
+                builder_calls
+                    .push(quote! { .builder_set(vanilla_components::CONSUMABLE, Some(#consumable_token)) });
+            }
+            "minecraft:use_cooldown" => {
+                let use_cooldown_token = generate_use_cooldown_component(value);
+                builder_calls
+                    .push(quote! { .builder_set(vanilla_components::USE_COOLDOWN, Some(#use_cooldown_token)) });
+            }
+            "minecraft:use_remainder" => {
+                let use_remainder_token = generate_use_remainder_component(value);
+                builder_calls
+                    .push(quote! { .builder_set(vanilla_components::USE_REMAINDER, Some(#use_remainder_token)) });
+            }
+            "minecraft:use_effects" => {
+                let use_effects_token = generate_use_effects_component(value);
+                builder_calls
+                    .push(quote! { .builder_set(vanilla_components::USE_EFFECTS, Some(#use_effects_token)) });
+            }
             _ => {
                 // TODO: Implement more
             }
@@ -317,12 +616,22 @@ pub(crate) fn build() -> TokenStream {
 
     quote! {
         use crate::{
-            data_components::{vanilla_components, DataComponentMap},
+            data_components::{vanilla_components, DataComponentMap, components::ConsumeEffect},
             vanilla_blocks,
             items::{Item, ItemRegistry},
+
         };
+
+        use crate::items::item::ItemUseAnimation;
+        use crate::mob_effect::{MobEffectInstance, LazyMobEffect};
+        use crate::item_stack::ItemStackTemplate;
+        use crate::REGISTRY;
+
         use steel_utils::Identifier;
+        use steel_utils::codec::VarInt;
+
         use std::sync::{LazyLock, OnceLock};
+        use std::str::FromStr;
 
         pub static ITEMS: LazyLock<Items> = LazyLock::new(Items::init);
 

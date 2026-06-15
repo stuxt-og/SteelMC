@@ -5,6 +5,7 @@ use rustc_hash::FxHashMap;
 use steel_utils::Identifier;
 
 pub mod item;
+pub mod potion;
 
 use crate::{
     REGISTRY, RegistryExt, TaggedRegistryExt, blocks::BlockRef, data_components::DataComponentMap,
@@ -137,6 +138,15 @@ impl ItemRegistry {
             .iter()
             .enumerate()
             .map(|(id, &item)| (id, item))
+    }
+
+    pub fn item_by_key(&self, key: Identifier) -> Option<ItemRef> {
+        Some(
+            *self
+                .items_by_id
+                .get(*self.items_by_key.get(&key).unwrap())
+                .unwrap(),
+        )
     }
 }
 

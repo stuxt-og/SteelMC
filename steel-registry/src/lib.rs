@@ -32,6 +32,7 @@ use crate::{
     game_rules::GameRuleRegistry,
     instrument::InstrumentRegistry,
     items::ItemRegistry,
+    items::potion::PotionRegistry,
     jukebox_song::JukeboxSongRegistry,
     loot_table::LootTableRegistry,
     menu_type::MenuTypeRegistry,
@@ -449,6 +450,11 @@ pub mod vanilla_configured_features;
 #[path = "generated/vanilla_placed_features.rs"]
 pub mod vanilla_placed_features;
 
+#[expect(warnings)]
+#[rustfmt::skip]
+#[path = "generated/vanilla_potions.rs"]
+pub mod vanilla_potions;
+
 pub struct RegistryLock(OnceLock<Registry>);
 
 impl RegistryLock {
@@ -632,6 +638,7 @@ pub struct Registry {
     pub placed_features: PlacedFeatureRegistry,
     pub structures: StructureRegistry,
     pub structure_processors: StructureProcessorListRegistry,
+    pub potions: PotionRegistry,
 }
 
 impl Debug for Registry {
@@ -743,6 +750,7 @@ impl Registry {
             &mut registry.configured_features,
         );
         vanilla_placed_features::register_placed_features(&mut registry.placed_features);
+        vanilla_potions::register_potions(&mut registry.potions);
 
         registry
     }
@@ -800,6 +808,7 @@ impl Registry {
         self.placed_features.freeze();
         self.structures.freeze();
         self.structure_processors.freeze();
+        self.potions.freeze();
     }
 
     fn validate_references(&self) {
@@ -988,6 +997,7 @@ impl Registry {
             placed_features: PlacedFeatureRegistry::new(),
             structures: StructureRegistry::new(),
             structure_processors: StructureProcessorListRegistry::new(),
+            potions: PotionRegistry::new(),
         }
     }
 }

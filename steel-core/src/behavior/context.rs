@@ -21,6 +21,8 @@ pub use steel_registry::items::item::BlockHitResult;
 pub enum InteractionResult {
     /// The interaction succeeded and consumed the action.
     Success,
+    /// The interaction consumed the action
+    Consume,
     /// The interaction failed and consumed the action.
     Fail,
     /// The interaction did not apply; try the next handler.
@@ -30,11 +32,11 @@ pub enum InteractionResult {
 }
 
 impl InteractionResult {
-    /// Returns true if this result consumes the action (Success or Fail).
+    /// Returns true if this result consumes the action.
     /// Pass and `TryEmptyHandInteraction` do not consume the action.
     #[must_use]
     pub const fn consumes_action(self) -> bool {
-        matches!(self, InteractionResult::Success | InteractionResult::Fail)
+        matches!(self, InteractionResult::Consume)
     }
 }
 

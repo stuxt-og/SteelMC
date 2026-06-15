@@ -16,19 +16,9 @@ use crate::{
         Component, ComponentData, ComponentPatchEntry, DataComponentMap, DataComponentPatch,
         DataComponentType,
         vanilla_components::{
-            CONSUMABLE,
-            DAMAGE,
-            ENCHANTMENTS,
-            EQUIPPABLE,
-            Equippable,
-            EquippableSlot,
-            ItemEnchantments,
-            MAX_DAMAGE,
-            MAX_STACK_SIZE,
-            TOOL,
-            //BLOCKS_ATTACKS, KINETIC_WEAPON
-            Tool,
-            UNBREAKABLE,
+            BLOCKS_ATTACKS, CONSUMABLE, DAMAGE, ENCHANTMENTS, EQUIPPABLE, Equippable,
+            EquippableSlot, ItemEnchantments, KINETIC_WEAPON, MAX_DAMAGE, MAX_STACK_SIZE, TOOL,
+            Tool, UNBREAKABLE,
         },
     },
     items::ItemRef,
@@ -777,9 +767,11 @@ impl ItemStack {
             return (consumable.consume_seconds * 20.0) as u32;
         }
 
-        //if !self.has(BLOCKS_ATTACKS) && !self.has(KINETIC_WEAPON) { 0 } else { 7200 }
-
-        32
+        if !self.has(BLOCKS_ATTACKS) && !self.has(KINETIC_WEAPON) {
+            0
+        } else {
+            7200
+        }
     }
 }
 
@@ -961,5 +953,21 @@ impl ItemStack {
             .unwrap_or_default();
 
         Some(Self::with_count_and_patch(item, count, patch))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ItemStackTemplate(pub ItemStack);
+
+impl ItemStackTemplate {
+    pub fn new(item: ItemRef) -> Self {
+        Self(ItemStack::new(item))
+    }
+    pub fn read(data: &mut Cursor<&[u8]>) -> Result<Self> {
+        Ok(Self(ItemStack::read(data).unwrap()))
+    }
+
+    pub fn from_nbt_tag(tag: BorrowedNbtTag) -> Option<Self> {
+        Some(Self(ItemStack::from_nbt_tag(tag).unwrap()))
     }
 }

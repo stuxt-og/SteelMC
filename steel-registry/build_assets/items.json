@@ -20128,7 +20128,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 895,
@@ -22705,7 +22705,7 @@
           "id": "minecraft:bowl"
         }
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 949,
@@ -22838,7 +22838,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 955,
@@ -24297,7 +24297,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 985,
@@ -24323,7 +24323,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 986,
@@ -24390,7 +24390,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 988,
@@ -24448,7 +24448,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 989,
@@ -25187,7 +25187,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "MobBucketItem"
+      "class": "FoodItem"
     },
     {
       "id": 1021,
@@ -25213,7 +25213,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "MobBucketItem"
+      "class": "FoodItem"
     },
     {
       "id": 1022,
@@ -25239,7 +25239,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "MobBucketItem"
+      "class": "FoodItem"
     },
     {
       "id": 1023,
@@ -25265,7 +25265,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "MobBucketItem"
+      "class": "FoodItem"
     },
     {
       "id": 1024,
@@ -26036,7 +26036,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1059,
@@ -26062,7 +26062,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1060,
@@ -26088,7 +26088,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1061,
@@ -26139,7 +26139,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1062,
@@ -26165,7 +26165,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1063,
@@ -26191,7 +26191,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1064,
@@ -27070,7 +27070,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1104,
@@ -27189,7 +27189,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1108,
@@ -27217,7 +27217,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1109,
@@ -27287,7 +27287,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1112,
@@ -27313,7 +27313,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1113,
@@ -27353,7 +27353,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1114,
@@ -27379,7 +27379,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1115,
@@ -27419,7 +27419,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1116,
@@ -27618,7 +27618,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1124,
@@ -30129,7 +30129,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "BlockItem"
+      "class": "FoodItem"
     },
     {
       "id": 1229,
@@ -30156,7 +30156,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "BlockItem"
+      "class": "FoodItem"
     },
     {
       "id": 1230,
@@ -30182,7 +30182,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1231,
@@ -30222,7 +30222,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1232,
@@ -30269,7 +30269,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1234,
@@ -30586,7 +30586,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1243,
@@ -30765,7 +30765,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1251,
@@ -30791,7 +30791,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1252,
@@ -30820,7 +30820,7 @@
           "id": "minecraft:bowl"
         }
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1253,
@@ -31252,7 +31252,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1266,
@@ -31278,7 +31278,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1267,
@@ -31720,7 +31720,7 @@
         },
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1285,
@@ -31811,7 +31811,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1289,
@@ -31862,7 +31862,7 @@
           "id": "minecraft:bowl"
         }
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1291,
@@ -33640,7 +33640,7 @@
           "id": "minecraft:bowl"
         }
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1342,
@@ -34374,7 +34374,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "BlockItem"
+      "class": "FoodItem"
     },
     {
       "id": 1375,
@@ -34401,7 +34401,7 @@
         "minecraft:tooltip_display": {},
         "minecraft:use_effects": {}
       },
-      "class": "BlockItem"
+      "class": "FoodItem"
     },
     {
       "id": 1376,
@@ -34583,7 +34583,7 @@
           "id": "minecraft:glass_bottle"
         }
       },
-      "class": "Item"
+      "class": "FoodItem"
     },
     {
       "id": 1383,
