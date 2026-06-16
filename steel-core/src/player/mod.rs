@@ -1137,7 +1137,6 @@ impl Player {
         let old_world = self.get_world();
         let switching_worlds = !Arc::ptr_eq(&old_world, &new_world);
 
-        // --- Old world cleanup (only when actually switching worlds) ---
         if switching_worlds {
             self.do_close_container();
             self.send_packet(CContainerClose { container_id: 0 });
@@ -1149,7 +1148,6 @@ impl Player {
             self.set_world(new_world.clone());
         }
 
-        // --- Reset transient state ---
         self.set_client_loaded(false);
         self.set_velocity(DVec3::ZERO);
         self.movement.lock().reset_last_known_client_movement();
@@ -1169,7 +1167,6 @@ impl Player {
 
         restore_state();
 
-        // --- Send CRespawn (not needed on initial join — CLogin already sent) ---
         if reason != ResetReason::InitialJoin {
             // 0x01 = keep attributes, 0x02 = keep entity data
             let data_kept: i8 = match reason {

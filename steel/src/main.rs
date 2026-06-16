@@ -9,6 +9,7 @@ use steel::config::{self, LogConfig};
 use steel::logger::CommandLogger;
 use steel::spawn_progress::generate_spawn_chunks;
 use steel::{SERVER, SteelServer, logger::LoggerLayer};
+use steel_core::server::Server;
 use steel_utils::text::DisplayResolutor;
 use text_components::fmt::set_display_resolutor;
 use tokio::runtime::{Builder, Runtime};
@@ -149,7 +150,7 @@ async fn main_async(chunk_runtime: Arc<Runtime>) {
     };
     let logger = init_tracing(cancel_token.clone(), steel_config.log.clone()).await;
 
-    if let Err(error) = run_server(chunk_runtime, cancel_token, &logger, steel_config).await {
+    if let Err(error) = run_server(chunk_runtime, cancel_token, steel_config).await {
         log::error!("Server startup failed: {error}");
     }
 
@@ -159,7 +160,6 @@ async fn main_async(chunk_runtime: Arc<Runtime>) {
 async fn run_server(
     chunk_runtime: Arc<Runtime>,
     cancel_token: CancellationToken,
-    logger: &Arc<CommandLogger>,
     steel_config: config::SteelConfig,
 ) -> Result<(), String> {
     #[cfg(feature = "deadlock_detection")]
@@ -194,10 +194,14 @@ async fn run_server(
         .await
         .map_err(|e| e.to_string())?;
 
-    generate_spawn_chunks(&steel.server, logger).await;
+    let server = steel.server.clone();
+
+    if !generate_spawn_chunks(&server).await {
+        shutdown_worlds(&server).await;
+        return Ok(());
+    }
 
     SERVER.set(steel.server.clone()).ok();
-    let server = steel.server.clone();
 
     let task_tracker = TaskTracker::new();
 
@@ -208,6 +212,13 @@ async fn run_server(
     task_tracker.close();
     task_tracker.wait().await;
 
+    shutdown_worlds(&server).await;
+
+    log::info!("Server stopped");
+    Ok(())
+}
+
+async fn shutdown_worlds(server: &Arc<Server>) {
     for world in server.worlds.values() {
         world.chunk_map.stop_generation_refill_loop();
         world.chunk_map.task_tracker.close();
@@ -235,7 +246,4 @@ async fn run_server(
         Ok(count) => log::info!("Saved {count} players"),
         Err(e) => log::error!("Failed to save player data: {e}"),
     }
-
-    log::info!("Server stopped");
-    Ok(())
 }

@@ -1,34 +1,144 @@
-//! Spawn chunk generation with optional terminal progress display.
+//! Spawn chunk generation.
 //!
 //! During server startup, generates chunks around the spawn position until
-//! the 7×7 Full area is complete. When the `spawn_chunk_display` feature is
-//! enabled, a colored ANSI grid shows real-time progress including the
-//! surrounding dependency rings.
+//! the 7×7 Full area is complete.
 //!
 //! Set `PREGEN_RADIUS` environment variable to generate a larger area (e.g., 128).
 
+use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use steel_core::chunk::chunk_pyramid::GENERATION_PYRAMID;
 use tokio::time::sleep;
 
 use steel_core::chunk::chunk_access::ChunkStatus;
-use steel_core::chunk::chunk_map::GenerationTaskCap;
-use steel_core::chunk::chunk_ticket_manager::ChunkTicket;
+use steel_core::chunk::chunk_pyramid::GENERATION_PYRAMID;
+use steel_core::chunk::chunk_request::{
+    ChunkRequest, ChunkRequestHandle, ChunkRequestState, ChunkTicketKind,
+};
 use steel_core::server::Server;
 use steel_core::world::World;
 use steel_utils::{ChunkPos, SectionPos};
+use tokio_util::sync::CancellationToken;
 
 #[cfg(feature = "slow_chunk_gen")]
 use std::sync::atomic::Ordering;
 #[cfg(feature = "slow_chunk_gen")]
 use steel_core::chunk::chunk_holder::SLOW_CHUNK_GEN;
 
-use crate::logger::CommandLogger;
-
 /// Vanilla spawn chunk radius — chunks within this radius reach Full status.
 const SPAWN_RADIUS: i32 = 3;
+const PREGEN_WINDOW_SIZE: i32 = 32;
+const PREGEN_ACTIVE_WINDOWS: usize = 2;
+const FULL_DEPENDENCY_RADIUS: i32 = GENERATION_PYRAMID
+    .get_step_to(ChunkStatus::Full)
+    .accumulated_dependencies
+    .get_radius_of(ChunkStatus::Empty) as i32;
+
+#[derive(Clone, Copy, Debug)]
+struct PregenWindow {
+    min_x: i32,
+    max_x: i32,
+    min_z: i32,
+    max_z: i32,
+}
+
+impl PregenWindow {
+    fn positions(self) -> Vec<ChunkPos> {
+        let mut positions = Vec::with_capacity(self.chunk_count());
+        for z in self.min_z..=self.max_z {
+            for x in self.min_x..=self.max_x {
+                positions.push(ChunkPos::new(x, z));
+            }
+        }
+        positions
+    }
+
+    const fn chunk_count(self) -> usize {
+        (self.width() * self.height()) as usize
+    }
+
+    const fn width(self) -> i32 {
+        self.max_x - self.min_x + 1
+    }
+
+    const fn height(self) -> i32 {
+        self.max_z - self.min_z + 1
+    }
+
+    const fn protected_rect(self) -> PregenRect {
+        PregenRect {
+            min_x: self.min_x - FULL_DEPENDENCY_RADIUS,
+            max_x: self.max_x + FULL_DEPENDENCY_RADIUS,
+            min_z: self.min_z - FULL_DEPENDENCY_RADIUS,
+            max_z: self.max_z + FULL_DEPENDENCY_RADIUS,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct PregenRect {
+    min_x: i32,
+    max_x: i32,
+    min_z: i32,
+    max_z: i32,
+}
+
+impl PregenRect {
+    const fn overlaps(self, other: Self) -> bool {
+        self.min_x <= other.max_x
+            && self.max_x >= other.min_x
+            && self.min_z <= other.max_z
+            && self.max_z >= other.min_z
+    }
+}
+
+struct ActivePregenWindow {
+    window: PregenWindow,
+    handle: ChunkRequestHandle,
+    ready_chunks: usize,
+    ready: bool,
+    counted: bool,
+}
+
+impl ActivePregenWindow {
+    fn new(world: &Arc<World>, window: PregenWindow) -> Self {
+        let handle = world.chunk_map.request_chunks(ChunkRequest {
+            status: ChunkStatus::Full,
+            positions: window.positions(),
+            ticket_kind: ChunkTicketKind::Pregen,
+        });
+        Self {
+            window,
+            handle,
+            ready_chunks: 0,
+            ready: false,
+            counted: false,
+        }
+    }
+
+    fn poll(&mut self, world: &Arc<World>) {
+        match self.handle.poll() {
+            ChunkRequestState::Ready => {
+                self.ready_chunks = self.window.chunk_count();
+                self.ready = true;
+            }
+            ChunkRequestState::Pending { ready, .. } => {
+                self.ready_chunks = ready;
+            }
+            ChunkRequestState::Cancelled => {
+                self.handle = world.chunk_map.request_chunks(ChunkRequest {
+                    status: ChunkStatus::Full,
+                    positions: self.window.positions(),
+                    ticket_kind: ChunkTicketKind::Pregen,
+                });
+                self.ready_chunks = 0;
+                self.ready = false;
+                self.counted = false;
+            }
+        }
+    }
+}
 
 /// Gets the pregeneration radius from environment variable, or returns default spawn radius.
 fn get_pregen_radius() -> i32 {
@@ -39,32 +149,14 @@ fn get_pregen_radius() -> i32 {
         .unwrap_or(SPAWN_RADIUS)
 }
 
-/// Dependency margin: extra rings required for Full chunk generation.
-const DEPENDENCY_MARGIN: i32 = GENERATION_PYRAMID
-    .get_step_to(ChunkStatus::Full)
-    .accumulated_dependencies
-    .get_radius_of(ChunkStatus::Empty) as i32;
-
-/// Display radius: Full radius + dependency margin.
-pub const DISPLAY_RADIUS: i32 = SPAWN_RADIUS + DEPENDENCY_MARGIN;
-
-/// Display diameter covering Full area + dependencies.
-#[cfg(feature = "spawn_chunk_display")]
-pub const DISPLAY_DIAMETER: usize = (DISPLAY_RADIUS * 2 + 1) as usize;
-
-/// Number of chunks that must reach Full status (7×7).
-#[cfg(feature = "spawn_chunk_display")]
-const TOTAL_SPAWN_CHUNKS: usize = ((SPAWN_RADIUS * 2 + 1) * (SPAWN_RADIUS * 2 + 1)) as usize;
-
-/// Generates spawn chunks, optionally displaying progress in the terminal.
+/// Generates spawn chunks.
 ///
 /// Adds a ticket at the world spawn position so that a 7×7 area of chunks
 /// reaches `Full` status. The generation system is pumped in a loop until
-/// completion. With the `spawn_chunk_display` feature, progress is shown as
-/// a colored terminal grid that includes the surrounding dependency chunks.
+/// completion.
 ///
 /// Set `PREGEN_RADIUS` environment variable to generate a larger area.
-pub async fn generate_spawn_chunks(server: &Arc<Server>, logger: &Arc<CommandLogger>) {
+pub async fn generate_spawn_chunks(server: &Arc<Server>) -> bool {
     let overworld = server.overworld();
     let pregen_radius = get_pregen_radius();
 
@@ -79,23 +171,15 @@ pub async fn generate_spawn_chunks(server: &Arc<Server>, logger: &Arc<CommandLog
         )
     };
 
-    // Overworld: supports the interactive display path when the spawn radius is small.
-    pregen_overworld(overworld, center_chunk, pregen_radius, logger).await;
+    pregen_overworld(overworld, center_chunk, pregen_radius, &server.cancel_token).await
 }
 
 async fn pregen_overworld(
     world: &Arc<World>,
     center_chunk: ChunkPos,
     pregen_radius: i32,
-    #[cfg_attr(
-        not(feature = "spawn_chunk_display"),
-        expect(
-            unused_variables,
-            reason = "logger only used with `spawn_chunk_display` feature enabled"
-        )
-    )]
-    logger: &Arc<CommandLogger>,
-) {
+    cancel_token: &CancellationToken,
+) -> bool {
     let total_chunks = ((pregen_radius * 2 + 1) * (pregen_radius * 2 + 1)) as usize;
 
     log::info!(
@@ -106,197 +190,214 @@ async fn pregen_overworld(
         center_chunk.0.y,
     );
 
-    let ticket = ChunkTicket::full_chunks(3);
-    let ticket_positions = build_ticket_positions(center_chunk, pregen_radius);
-
-    {
-        let mut tickets = world.chunk_map.chunk_tickets.lock();
-        for pos in &ticket_positions {
-            tickets.add_ticket(*pos, ticket);
-        }
-    }
-
     #[cfg(feature = "slow_chunk_gen")]
     SLOW_CHUNK_GEN.store(true, Ordering::Relaxed);
 
-    #[cfg(feature = "spawn_chunk_display")]
-    let elapsed = if pregen_radius > SPAWN_RADIUS {
-        let start = Instant::now();
-        generate_pregen(world, center_chunk, pregen_radius).await;
-        start.elapsed()
-    } else {
-        generate_with_display(world, center_chunk, logger).await
-    };
-
-    #[cfg(not(feature = "spawn_chunk_display"))]
     let elapsed = {
         let start = Instant::now();
-        generate_pregen(world, center_chunk, pregen_radius).await;
-        start.elapsed()
+        let completed = generate_pregen(world, center_chunk, pregen_radius, cancel_token).await;
+        (start.elapsed(), completed)
     };
 
     #[cfg(feature = "slow_chunk_gen")]
     SLOW_CHUNK_GEN.store(false, Ordering::Relaxed);
 
-    {
-        let mut tickets = world.chunk_map.chunk_tickets.lock();
-        for pos in &ticket_positions {
-            tickets.remove_ticket(*pos, ticket);
-        }
-    }
-
-    log::info!(
-        "Spawn area prepared: {} chunks in {:.2}s ({:.1} chunks/s)",
-        total_chunks,
-        elapsed.as_secs_f64(),
-        total_chunks as f64 / elapsed.as_secs_f64(),
-    );
-}
-
-fn build_ticket_positions(center_chunk: ChunkPos, pregen_radius: i32) -> Vec<ChunkPos> {
-    if pregen_radius > SPAWN_RADIUS {
-        let total = ((pregen_radius * 2 + 1) * (pregen_radius * 2 + 1)) as usize;
-        let mut positions = Vec::with_capacity(total);
-        for z in -pregen_radius..=pregen_radius {
-            for x in -pregen_radius..=pregen_radius {
-                positions.push(ChunkPos::new(center_chunk.0.x + x, center_chunk.0.y + z));
-            }
-        }
-        positions
+    let elapsed_secs = elapsed.0.as_secs_f64();
+    let chunks_per_second = if elapsed_secs > 0.0 {
+        total_chunks as f64 / elapsed_secs
     } else {
-        vec![center_chunk]
+        0.0
+    };
+    if elapsed.1 {
+        log::info!(
+            "Spawn area prepared: {total_chunks} chunks in {elapsed_secs:.2}s ({chunks_per_second:.1} chunks/s)",
+        );
+    } else {
+        log::info!("Spawn area preparation cancelled after {elapsed_secs:.2}s");
     }
+    elapsed.1
 }
 
-/// Returns the elapsed generation time (excluding the final display delay).
-#[cfg(feature = "spawn_chunk_display")]
-async fn generate_with_display(
-    world: &Arc<World>,
-    center_chunk: ChunkPos,
-    logger: &Arc<CommandLogger>,
-) -> Duration {
-    use crate::spawn_progress::{DISPLAY_DIAMETER, DISPLAY_RADIUS};
+fn build_pregen_windows(center_chunk: ChunkPos, radius: i32) -> VecDeque<PregenWindow> {
+    let min_x = center_chunk.0.x - radius;
+    let max_x = center_chunk.0.x + radius;
+    let min_z = center_chunk.0.y - radius;
+    let max_z = center_chunk.0.y + radius;
+    let mut windows = VecDeque::new();
 
-    let _ = logger.activate_spawn_display().await;
-    let start = Instant::now();
-    let mut grid = [[None; DISPLAY_DIAMETER]; DISPLAY_DIAMETER];
-    let mut last_render = Instant::now();
-
-    loop {
-        world
-            .chunk_map
-            .tick_scheduling(GenerationTaskCap::RespectMaxCap);
-
-        let mut completed = 0;
-        let mut pending_dependencies = false;
-
-        for dz in -DISPLAY_RADIUS..=DISPLAY_RADIUS {
-            for dx in -DISPLAY_RADIUS..=DISPLAY_RADIUS {
-                let pos = ChunkPos::new(center_chunk.0.x + dx, center_chunk.0.y + dz);
-                let status = world
-                    .chunk_map
-                    .chunks
-                    .read_sync(&pos, |_, holder| holder.persisted_status())
-                    .flatten();
-
-                let gx = (dx + DISPLAY_RADIUS) as usize;
-                let gz = (dz + DISPLAY_RADIUS) as usize;
-                grid[gz][gx] = status;
-
-                let in_spawn_area = dx.abs() <= SPAWN_RADIUS && dz.abs() <= SPAWN_RADIUS;
-                if in_spawn_area && status == Some(ChunkStatus::Full) {
-                    completed += 1;
-                } else if !in_spawn_area && status.is_none() {
-                    pending_dependencies = true;
-                }
-            }
+    let mut z = min_z;
+    while z <= max_z {
+        let window_max_z = (z + PREGEN_WINDOW_SIZE - 1).min(max_z);
+        let mut x = min_x;
+        while x <= max_x {
+            let window_max_x = (x + PREGEN_WINDOW_SIZE - 1).min(max_x);
+            windows.push_back(PregenWindow {
+                min_x: x,
+                max_x: window_max_x,
+                min_z: z,
+                max_z: window_max_z,
+            });
+            x = window_max_x + 1;
         }
-
-        // Always update grid state; throttle rendering to ~10fps
-        let should_render = last_render.elapsed() >= Duration::from_millis(100);
-        let _ = logger.update_spawn_grid(&grid, should_render).await;
-        if should_render {
-            last_render = Instant::now();
-        }
-
-        if completed == TOTAL_SPAWN_CHUNKS && !pending_dependencies {
-            break;
-        }
-
-        sleep(Duration::from_millis(10)).await;
+        z = window_max_z + 1;
     }
 
-    let elapsed = start.elapsed();
-
-    // Render final state
-    let _ = logger.update_spawn_grid(&grid, true).await;
-    // Show completed grid briefly before clearing
-    #[cfg(feature = "slow_chunk_gen")]
-    sleep(Duration::from_secs(1)).await;
-    logger.deactivate_spawn_display().await;
-
-    elapsed
+    windows
 }
 
 /// Generates chunks with progress reporting for pregeneration.
-async fn generate_pregen(world: &Arc<World>, center_chunk: ChunkPos, radius: i32) {
+async fn generate_pregen(
+    world: &Arc<World>,
+    center_chunk: ChunkPos,
+    radius: i32,
+    cancel_token: &CancellationToken,
+) -> bool {
     let total_chunks = ((radius * 2 + 1) * (radius * 2 + 1)) as usize;
+    let mut pending_windows = build_pregen_windows(center_chunk, radius);
+    let mut active_windows = Vec::with_capacity(PREGEN_ACTIVE_WINDOWS + 1);
     let mut last_report = Instant::now();
     let mut last_completed = 0usize;
+    let mut completed = 0usize;
     let start = Instant::now();
 
-    loop {
-        world
-            .chunk_map
-            .tick_scheduling(GenerationTaskCap::RespectMaxCap);
+    log::info!(
+        "Pregeneration windowing: {PREGEN_WINDOW_SIZE}x{PREGEN_WINDOW_SIZE} target chunks, {PREGEN_ACTIVE_WINDOWS} active windows, dependency halo {FULL_DEPENDENCY_RADIUS} chunks",
+    );
 
-        // Count completed chunks
-        let completed = count_full_chunks(world, center_chunk, radius);
+    fill_active_windows(world, &mut pending_windows, &mut active_windows);
 
-        // Report progress every 5 seconds for large pregen
-        if radius > SPAWN_RADIUS && last_report.elapsed() >= Duration::from_secs(5) {
-            let elapsed = start.elapsed().as_secs_f64();
-            let chunks_per_sec = if elapsed > 0.0 {
-                (completed.saturating_sub(last_completed)) as f64 / 5.0
-            } else {
-                0.0
-            };
-            let percent = (completed as f64 / total_chunks as f64) * 100.0;
-            let eta = if chunks_per_sec > 0.0 {
-                (total_chunks - completed) as f64 / chunks_per_sec
-            } else {
-                0.0
-            };
-            log::info!(
-                "Progress: {completed}/{total_chunks} ({percent:.1}%), {chunks_per_sec:.1} chunks/s, ETA: {eta:.0}s",
-            );
-            last_report = Instant::now();
-            last_completed = completed;
+    while completed < total_chunks {
+        if cancel_token.is_cancelled() {
+            release_all_windows(world, &mut active_windows);
+            return false;
         }
+
+        world.chunk_map.tick_scheduling();
+
+        for active in &mut active_windows {
+            active.poll(world);
+        }
+
+        let newly_ready_count = active_windows
+            .iter()
+            .filter(|active| active.ready && !active.counted)
+            .count();
+        for _ in 0..newly_ready_count {
+            activate_next_window(world, &mut pending_windows, &mut active_windows);
+        }
+
+        for active in &mut active_windows {
+            if active.ready && !active.counted {
+                completed += active.window.chunk_count();
+                active.counted = true;
+            }
+        }
+        fill_active_windows(world, &mut pending_windows, &mut active_windows);
+        world.chunk_map.tick_scheduling();
+        release_unneeded_completed_windows(world, &pending_windows, &mut active_windows);
 
         if completed == total_chunks {
             break;
         }
 
-        sleep(Duration::from_millis(10)).await;
+        // Report progress every 5 seconds for large pregen
+        if radius > SPAWN_RADIUS && last_report.elapsed() >= Duration::from_secs(5) {
+            let ready_in_active = active_windows
+                .iter()
+                .filter(|active| !active.counted)
+                .map(|active| active.ready_chunks)
+                .sum::<usize>();
+            let current_completed = (completed + ready_in_active).min(total_chunks);
+            let elapsed = start.elapsed().as_secs_f64();
+            let chunks_per_sec = if elapsed > 0.0 {
+                (current_completed.saturating_sub(last_completed)) as f64
+                    / last_report.elapsed().as_secs_f64()
+            } else {
+                0.0
+            };
+            let percent = (current_completed as f64 / total_chunks as f64) * 100.0;
+            let remaining = total_chunks.saturating_sub(current_completed);
+            let eta = if chunks_per_sec > 0.0 && remaining > 0 {
+                remaining as f64 / chunks_per_sec
+            } else {
+                0.0
+            };
+            log::info!(
+                "Progress: {current_completed}/{total_chunks} ({percent:.1}%), {chunks_per_sec:.1} chunks/s, ETA: {eta:.0}s",
+            );
+            last_report = Instant::now();
+            last_completed = current_completed;
+        }
+
+        tokio::select! {
+            () = cancel_token.cancelled() => {
+                release_all_windows(world, &mut active_windows);
+                return false;
+            }
+            () = sleep(Duration::from_millis(10)) => {}
+        }
+    }
+
+    release_all_windows(world, &mut active_windows);
+    true
+}
+
+fn fill_active_windows(
+    world: &Arc<World>,
+    pending_windows: &mut VecDeque<PregenWindow>,
+    active_windows: &mut Vec<ActivePregenWindow>,
+) {
+    while active_windows.iter().filter(|active| !active.ready).count() < PREGEN_ACTIVE_WINDOWS {
+        if !activate_next_window(world, pending_windows, active_windows) {
+            break;
+        }
     }
 }
 
-/// Counts how many chunks in the area have reached Full status.
-fn count_full_chunks(world: &Arc<World>, center_chunk: ChunkPos, radius: i32) -> usize {
-    let mut completed = 0;
-    for dz in -radius..=radius {
-        for dx in -radius..=radius {
-            let pos = ChunkPos::new(center_chunk.0.x + dx, center_chunk.0.y + dz);
-            let status = world
-                .chunk_map
-                .chunks
-                .read_sync(&pos, |_, holder| holder.persisted_status())
-                .flatten();
-            if status == Some(ChunkStatus::Full) {
-                completed += 1;
-            }
+fn activate_next_window(
+    world: &Arc<World>,
+    pending_windows: &mut VecDeque<PregenWindow>,
+    active_windows: &mut Vec<ActivePregenWindow>,
+) -> bool {
+    let Some(window) = pending_windows.pop_front() else {
+        return false;
+    };
+
+    active_windows.push(ActivePregenWindow::new(world, window));
+    true
+}
+
+fn release_unneeded_completed_windows(
+    world: &Arc<World>,
+    pending_windows: &VecDeque<PregenWindow>,
+    active_windows: &mut Vec<ActivePregenWindow>,
+) {
+    let incomplete_windows = active_windows
+        .iter()
+        .filter(|active| !active.ready)
+        .map(|active| active.window)
+        .collect::<Vec<_>>();
+
+    active_windows.retain(|active| {
+        if !active.ready {
+            return true;
         }
-    }
-    completed
+
+        let protected = active.window.protected_rect();
+        let overlaps_incomplete = incomplete_windows
+            .iter()
+            .any(|window| protected.overlaps(window.protected_rect()));
+        let overlaps_pending = pending_windows
+            .iter()
+            .any(|window| protected.overlaps(window.protected_rect()));
+
+        overlaps_incomplete || overlaps_pending
+    });
+
+    world.chunk_map.tick_scheduling();
+}
+
+fn release_all_windows(world: &Arc<World>, active_windows: &mut Vec<ActivePregenWindow>) {
+    active_windows.clear();
+    world.chunk_map.tick_scheduling();
 }
