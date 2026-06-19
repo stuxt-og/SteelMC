@@ -2,7 +2,6 @@
 
 use steel_macros::{ClientPacket, WriteTo};
 use steel_registry::packets::play::C_REMOVE_MOB_EFFECT;
-use steel_utils::Identifier;
 
 /// Clientbound packet sent to remove entity mob effect.
 ///
@@ -14,17 +13,18 @@ pub struct CRemoveMobEffect {
     /// The entity ID whose mob effect is being removed.
     #[write(as = VarInt)]
     pub entity_id: i32,
-    /// The mob effect to remove.
-    pub identifier: Identifier,
+    /// The mob effect id to remove.
+    #[write(as = VarInt)]
+    pub effect_id: i32,
 }
 
 impl CRemoveMobEffect {
     /// Creates a new update attributes packet.
     #[must_use]
-    pub fn new(entity_id: i32, identifier: Identifier) -> Self {
+    pub fn new(entity_id: i32, effect_id: i32) -> Self {
         Self {
             entity_id,
-            identifier,
+            effect_id,
         }
     }
 }

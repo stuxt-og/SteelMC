@@ -431,6 +431,28 @@ pub struct PersistentEntity {
     pub nbt_data: Vec<u8>,
     /// Direct passengers nested under this entity.
     pub passengers: Vec<PersistentEntity>,
+    /// Effects applied to this entity.
+    pub mob_effects: Option<Vec<PersistentMobEffect>>,
+}
+
+/// An effect stored with a chunk.
+///
+/// Stores the effect id, it's duration, amplifier, is ambient,
+/// is showing particles, is showing icon
+#[derive(SchemaWrite, SchemaRead, Debug, Clone)]
+pub struct PersistentMobEffect {
+    /// Effect ID (e.g., "minecraft:regeneration")
+    pub effect_id: String,
+    /// It's duration (-1 = no duration)
+    pub duration: i32,
+    /// It's amplifier
+    pub amplifier: i32,
+    /// Is it ambient effect
+    pub ambient: bool,
+    /// Is it showing particles
+    pub show_particles: bool,
+    /// Is it showing icon
+    pub show_icon: bool,
 }
 
 /// A scheduled tick stored with a chunk.

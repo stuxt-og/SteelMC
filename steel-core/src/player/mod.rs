@@ -73,7 +73,7 @@ use steel_registry::vanilla_game_events::{ITEM_INTERACT_FINISH, ITEM_INTERACT_ST
 use steel_registry::vanilla_game_rules::{
     ADVANCE_TIME, IMMEDIATE_RESPAWN, KEEP_INVENTORY, MAX_ENTITY_CRAMMING, SHOW_DEATH_MESSAGES,
 };
-use steel_registry::{sound_events, vanilla_attributes, vanilla_entities};
+use steel_registry::{REGISTRY, sound_events, vanilla_attributes, vanilla_entities};
 use steel_utils::entity_events::EntityStatus;
 use steel_utils::random::Random;
 use steel_utils::types::InteractionHand;
@@ -105,6 +105,7 @@ use steel_protocol::packets::{
     common::SCustomPayload,
     game::{CContainerClose, CGameEvent, CSystemChat, GameEventType, PreviousMessage},
 };
+use steel_registry::data_components::components::ConsumeEffect;
 use steel_registry::data_components::vanilla_components;
 use steel_registry::item_stack::ItemStack;
 
@@ -484,6 +485,14 @@ impl Player {
 
         self.refresh_dirty_attributes();
         self.tick_living_state();
+
+        if let Some(level) = self.level() {
+            self.living_base().tick_effects(
+                self.id(),
+                level,
+                ChunkPos::from_entity_pos(self.position()),
+            );
+        }
 
         self.tick_using_item();
 
@@ -1357,12 +1366,9 @@ impl Player {
 
     /// Based on Java's ItemStack.applyAfterUseComponentSideEffects
     pub fn apply_after_use_component_side_effects(&self, use_item: &ItemStack) -> ItemStack {
-        let stack_before_using = self.use_item.lock();
-
         if let Some(use_remainder) = use_item.get(vanilla_components::USE_REMAINDER) {
             return use_remainder.convert_into_remainder(
                 use_item,
-                stack_before_using.count(),
                 self.has_infinite_materials(),
                 |s| {
                     self.add_item_or_drop(s.clone());
@@ -1437,14 +1443,22 @@ impl Player {
         self.set_entity_flag(0x02, false);
 
         if !self.has_infinite_materials() {
-            let mut inv = self.inventory.lock();
-            let item = inv.get_item_in_hand_mut(hand);
-            if !item.is_empty() {
-                item.shrink(1);
+            let (item_to_process, was_not_empty) = {
+                let mut inv = self.inventory.lock();
+                let item = inv.get_item_in_hand_mut(hand);
+                if item.is_empty() {
+                    (ItemStack::empty(), false)
+                } else {
+                    item.shrink(1);
+                    (item.clone(), true)
+                }
+            };
 
-                let updated_item = self.apply_after_use_component_side_effects(item);
+            if was_not_empty {
+                let updated_item = self.apply_after_use_component_side_effects(&item_to_process);
 
-                *item = updated_item;
+                let mut inv = self.inventory.lock();
+                *inv.get_item_in_hand_mut(hand) = updated_item;
             }
         }
 
@@ -1464,13 +1478,67 @@ impl Player {
             );
         }
 
+        self.handle_consume_end(&cached_item);
+
+        *self.use_item.lock() = ItemStack::empty();
+    }
+
+    /// Handles the end of consuming
+    pub fn handle_consume_end(&self, cached_item: &ItemStack) {
+        if let Some(consumable) = cached_item.get(vanilla_components::CONSUMABLE) {
+            consumable.on_consume_effects.iter().for_each(|e| {
+                match e {
+                    ConsumeEffect::ApplyEffects { effects } => {
+                        for effect in effects {
+                            self.set_mob_effect_instance(effect);
+                        }
+                    }
+                    ConsumeEffect::RemoveEffects { effects } => {
+                        for effect in effects {
+                            self.set_mob_effect_active(effect.resolve(), false);
+                        }
+                    }
+                    ConsumeEffect::ClearAllEffects => {
+                        self.living_base().clear_mob_effects();
+                    }
+                    ConsumeEffect::TeleportRandomly { diameter } => {
+                        let _ = diameter;
+
+                        // TODO
+                    }
+                    ConsumeEffect::PlaySound { sound_event } => {
+                        if let Some(level) = self.level() {
+                            level.play_sound(
+                                REGISTRY.sound_events.sound_event_by_key(sound_event),
+                                SoundSource::Players,
+                                BlockPos::from(self.position()),
+                                1.0,
+                                1.0,
+                                None,
+                            );
+                        }
+                    }
+                }
+            });
+        }
+
         if let Some(food_props) = cached_item.get(vanilla_components::FOOD) {
             self.food_data
                 .lock()
                 .eat(food_props.nutrition, food_props.saturation);
 
             let pitch = 0.9 + self.random.lock().next_f32() * 0.1;
-            self.play_sound(&sound_events::ENTITY_PLAYER_BURP, 0.5, pitch);
+
+            if let Some(level) = self.level() {
+                level.play_sound(
+                    &sound_events::ENTITY_PLAYER_BURP,
+                    SoundSource::Players,
+                    BlockPos::from(self.position()),
+                    0.5,
+                    pitch,
+                    None,
+                );
+            }
         } else if let Some(potion_contents) = cached_item.get(vanilla_components::POTION_CONTENTS) {
             let potion_effects = potion_contents
                 .potion
@@ -1485,8 +1553,6 @@ impl Player {
                     self.set_mob_effect_instance(e);
                 });
         }
-
-        *self.use_item.lock() = ItemStack::empty();
     }
 }
 

@@ -11,10 +11,16 @@ use steel_registry::mob_effect::{LazyMobEffect, MobEffectInstance, MobEffectRef}
 use steel_registry::vanilla_attributes;
 use steel_registry::vanilla_entity_data::VanillaLivingEntityData;
 use steel_utils::locks::SyncMutex;
-use steel_utils::{BlockPos, Identifier};
+use steel_utils::{BlockPos, ChunkPos, Identifier};
 
+use crate::entity::REGISTRY;
 use crate::entity::attribute::{AttributeMap, AttributeModifier, AttributeModifierOperation};
 use crate::inventory::equipment::EntityEquipment;
+use crate::world::World;
+
+use std::sync::Arc;
+
+use steel_protocol::packets::game::CUpdateMobEffect;
 
 /// Duration in ticks of the death animation before entity removal.
 pub const DEATH_DURATION: i32 = 20;
@@ -181,19 +187,19 @@ impl LivingEntityBase {
         &self.equipment
     }
 
-    /// Returns whether this living entity has an active vanilla mob effect.
+    /// Returns whether this living entity has an active mob effect.
     #[must_use]
     pub fn has_mob_effect(&self, effect: MobEffectRef) -> bool {
         self.active_mob_effects.lock().contains_key(&effect)
     }
 
-    /// Returns active vanilla mob-effect state.
+    /// Returns active mob effect state.
     #[must_use]
     pub fn mob_effect(&self, effect: MobEffectRef) -> Option<MobEffectInstance> {
         self.active_mob_effects.lock().get(&effect).cloned()
     }
 
-    /// Sets active vanilla mob-effect state.
+    /// Sets active mob effect state.
     pub fn set_mob_effect(&self, effect: MobEffectRef, amplifier: i32) {
         self.active_mob_effects.lock().insert(
             effect,
@@ -201,7 +207,7 @@ impl LivingEntityBase {
         );
     }
 
-    /// Sets the presence of a vanilla mob effect.
+    /// Sets the presence of a mob effect.
     pub fn set_mob_effect_active(&self, effect: MobEffectRef, active: bool) {
         let mut effects = self.active_mob_effects.lock();
         if active {
@@ -214,14 +220,14 @@ impl LivingEntityBase {
         }
     }
 
-    /// Sets active vanilla mob-effect instance.
+    /// Sets active mob effect instance.
     pub fn set_mob_effect_instance(&self, instance: &MobEffectInstance) {
         self.active_mob_effects
             .lock()
             .insert(instance.effect(), instance.clone());
     }
 
-    /// Sets the presence of a vanilla mob effect instance.
+    /// Sets the presence of a mob effect instance.
     pub fn set_mob_effect_instance_active(&self, instance: &MobEffectInstance, active: bool) {
         let mut effects = self.active_mob_effects.lock();
         if active {
@@ -229,6 +235,23 @@ impl LivingEntityBase {
         } else {
             effects.remove(&instance.effect());
         }
+    }
+
+    /// Calls closure on mob effect instances.
+    pub fn for_each_mob_effect<F>(&self, mut f: F)
+    where
+        F: FnMut(&MobEffectRef, &MobEffectInstance),
+    {
+        let guard = self.active_mob_effects.lock();
+
+        for (key, val) in guard.iter() {
+            f(key, val);
+        }
+    }
+
+    /// Clears all mob effects
+    pub fn clear_mob_effects(&self) {
+        self.active_mob_effects.lock().clear();
     }
 
     /// Gets the cached movement speed used by living movement code.
@@ -299,6 +322,23 @@ impl LivingEntityBase {
             state.fall_flying_ticks = state.fall_flying_ticks.wrapping_add(1);
         } else {
             state.fall_flying_ticks = 0;
+        }
+    }
+
+    /// Ticks vanilla `LivingEntity.tickEffects`
+    pub fn tick_effects(&self, entity_id: i32, level: Arc<World>, chunk_pos: ChunkPos) {
+        for instance in self.active_mob_effects.lock().iter() {
+            level.broadcast_to_nearby(
+                chunk_pos,
+                CUpdateMobEffect::new(
+                    entity_id,
+                    *REGISTRY.mob_effects.effect_id_by_key(&instance.0.key) as i32,
+                    instance.1.amplifier(),
+                    instance.1.duration(),
+                    CUpdateMobEffect::make_flags(false, true, true, true),
+                ),
+                None,
+            );
         }
     }
 

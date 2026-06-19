@@ -46,6 +46,17 @@ impl SoundEventRegistry {
             allows_registering: true,
         }
     }
+
+    pub fn sound_event_by_key(&self, identifier: &Identifier) -> &SoundEventRef {
+        self.sound_events_by_id
+            .get(
+                *self
+                    .sound_events_by_key
+                    .get(identifier)
+                    .unwrap_or_else(|| panic!("Invalid sound event: {}", identifier)),
+            )
+            .unwrap()
+    }
 }
 
 crate::impl_standard_methods!(

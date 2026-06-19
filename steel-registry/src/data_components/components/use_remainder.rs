@@ -43,26 +43,27 @@ impl UseRemainder {
     pub fn convert_into_remainder<F>(
         &self,
         used_stack: &ItemStack,
-        stack_count_before_using: i32,
         has_infinite_materials: bool,
         on_extra_created_remainder: F,
     ) -> ItemStack
     where
         F: Fn(&ItemStack),
     {
-        let used_stack = used_stack.clone();
-
-        if has_infinite_materials || used_stack.count >= stack_count_before_using {
-            return used_stack;
+        if has_infinite_materials {
+            return used_stack.clone();
         }
 
-        let result = self.template().0.clone();
+        let remainder = self.template().0.clone();
 
-        if !result.is_empty() {
-            on_extra_created_remainder(&result);
+        if used_stack.is_empty() {
+            remainder
+        } else {
+            if !remainder.is_empty() {
+                on_extra_created_remainder(&remainder);
+            }
+
+            used_stack.clone()
         }
-
-        result
     }
 }
 

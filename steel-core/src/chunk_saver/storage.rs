@@ -29,7 +29,13 @@ use steel_registry::structure::{
     LiquidSettingsData, OceanRuinBiomeTempData, RuinedPortalPlacementData, TerrainAdjustment,
 };
 use steel_registry::template_pool::{PoolElement, ProcessorList, Projection};
-use steel_registry::{REGISTRY, Registry, RegistryEntry, RegistryExt, vanilla_biomes};
+use steel_registry::{
+    REGISTRY,
+    Registry,
+    RegistryEntry,
+    RegistryExt,
+    vanilla_biomes, // mob_effect::{LazyMobEffect, MobEffectInstance}
+};
 use steel_utils::{
     BlockPos, BlockStateId, ChunkPos, Direction, Identifier, PackedChunkPos, Rotation,
 };
@@ -335,9 +341,10 @@ use super::ram_only::RamOnlyStorage;
 use super::region_manager::RegionManager;
 use super::{
     PersistentBiomeData, PersistentBlockEntity, PersistentBlockState, PersistentChunk,
-    PersistentDesertPyramidPieceData, PersistentEntity, PersistentHeightmap,
-    PersistentJigsawJunction, PersistentJigsawPieceData, PersistentJungleTemplePieceData,
-    PersistentMineshaftPieceData, PersistentMineshaftPieceKind, PersistentNetherFortressPieceData,
+    PersistentDesertPyramidPieceData, PersistentEntity,
+    /*PersistentMobEffect,*/ PersistentHeightmap, PersistentJigsawJunction,
+    PersistentJigsawPieceData, PersistentJungleTemplePieceData, PersistentMineshaftPieceData,
+    PersistentMineshaftPieceKind, PersistentNetherFortressPieceData,
     PersistentOceanMonumentChildPiece, PersistentOceanMonumentChildPieceKind,
     PersistentOceanMonumentPieceData, PersistentOceanMonumentRoomData, PersistentPoi,
     PersistentPoolElement, PersistentProceduralPieceData, PersistentProcessorList,
@@ -804,6 +811,43 @@ impl ChunkStorage {
             .filter_map(|passenger| Self::entity_to_persistent(passenger, visited))
             .collect();
 
+        // if entity.is_living_entity() {
+        //     let mut effects = Vec::new();
+        //
+        //     entity.as_living_entity()
+        //         .living_base()
+        //         .for_each_mob_effect(|e, i| {
+        //             effects.push(
+        //                 PersistentMobEffect{
+        //                     effect_id: e.key.to_string(),
+        //                     duration: i.duration().unwrap_or(-1),
+        //                     amplifier: i.amplifier(),
+        //                     ambient: i.ambient(),
+        //                     show_particles: i.visible(),
+        //                     show_icon: i.show_icon(),
+        //                 }
+        //             );
+        //         });
+        //
+        //     Some(PersistentEntity {
+        //         entity_type: entity.entity_type().key.clone(),
+        //         uuid: *entity.uuid().as_bytes(),
+        //         pos: [stored_pos.x, stored_pos.y, stored_pos.z],
+        //         motion: [vel.x, vel.y, vel.z],
+        //         rotation: [yaw, pitch],
+        //         fall_distance: entity.fall_distance(),
+        //         remaining_fire_ticks: fire_freeze.remaining_fire_ticks(),
+        //         ticks_frozen: fire_freeze.ticks_frozen(),
+        //         is_in_powder_snow: fire_freeze.is_in_powder_snow(),
+        //         was_in_powder_snow: fire_freeze.was_in_powder_snow(),
+        //         has_visual_fire: fire_freeze.has_visual_fire(),
+        //         on_ground: entity.on_ground(),
+        //         no_gravity: entity.is_no_gravity(),
+        //         nbt_data: nbt_bytes,
+        //         passengers,
+        //         mob_effects: Some(effects)
+        //     })
+        // } else {
         Some(PersistentEntity {
             entity_type: entity.entity_type().key.clone(),
             uuid: *entity.uuid().as_bytes(),
@@ -820,7 +864,9 @@ impl ChunkStorage {
             no_gravity: entity.is_no_gravity(),
             nbt_data: nbt_bytes,
             passengers,
+            mob_effects: None,
         })
+        // }
     }
 
     fn entity_should_save(entity: &dyn Entity) -> bool {
@@ -1240,7 +1286,7 @@ impl ChunkStorage {
             return None;
         };
 
-        Some(ENTITIES.create_and_load_or_raw(
+        let entity = ENTITIES.create_and_load_or_raw(
             EntityLoadRequest {
                 entity_type,
                 position: pos,
@@ -1260,7 +1306,36 @@ impl ChunkStorage {
                 world: Weak::clone(level),
             },
             &nbt,
-        ))
+        );
+
+        // if let Some(living) = entity.try_as_living_entity(){
+        //     let base = living.living_base();
+        //
+        //     if let Some(effects) = &persistent.mob_effects {
+        //         for effect in effects {
+        //             if let Some((namespace, path)) = effect.effect_id.split_once(':') {
+        //                 let effect_by_id = REGISTRY.mob_effects.effect_by_key(
+        //                     &Identifier::new(namespace, path)
+        //                 );
+        //
+        //                 if effect_by_id.is_none() {
+        //                     log::error!("Failed to apply effect to entity on apply: {}", effect.effect_id);
+        //                 }
+        //
+        //                 base.set_mob_effect_instance(
+        //                     &MobEffectInstance::new(
+        //                         LazyMobEffect::Resolved(
+        //                             effect_by_id.unwrap()
+        //                         ),
+        //                         effect.amplifier
+        //                     )
+        //                 );
+        //             }
+        //         }
+        //     }
+        // }
+
+        Some(entity)
     }
 
     /// Converts block ticks to persistent format for saving.

@@ -27,7 +27,7 @@ pub struct MobEffect {
 
 impl WriteTo for MobEffect {
     fn write(&self, writer: &mut impl Write) -> Result<()> {
-        self.key.write(writer)?;
+        VarInt::from(*REGISTRY.mob_effects.effect_id_by_key(&self.key) as i32).write(writer)?;
 
         Ok(())
     }
@@ -74,10 +74,15 @@ impl MobEffectRegistry {
             .map(|(id, &effect)| (id, effect))
     }
 
-    pub fn effect_by_key(&self, identifier: &Identifier) -> MobEffectRef {
+    pub fn effect_by_key(&self, identifier: &Identifier) -> Option<&MobEffectRef> {
         self.effects_by_id
-            .get(*self.effects_by_key.get(identifier).unwrap())
-            .unwrap()
+            .get(match self.effects_by_key.get(identifier) {
+                Some(id) => *id,
+                None => {
+                    log::error!("Invalid identifier: {}", identifier);
+                    return None;
+                }
+            })
     }
 
     pub fn effect_id_by_key(&self, identifier: &Identifier) -> &usize {
@@ -119,7 +124,10 @@ impl LazyMobEffect {
     pub fn resolve(&self) -> MobEffectRef {
         match self {
             LazyMobEffect::Resolved(effect) => effect,
-            LazyMobEffect::Raw(key) => REGISTRY.mob_effects.effect_by_key(key),
+            LazyMobEffect::Raw(key) => REGISTRY
+                .mob_effects
+                .effect_by_key(key)
+                .unwrap_or_else(|| panic!("Mob effect not found in registry: {}", key)),
         }
     }
 }
@@ -129,9 +137,9 @@ pub struct MobEffectInstance {
     effect: LazyMobEffect,
     amplifier: i32,
     duration: Option<i32>,
-    pub ambient: bool,
-    pub visible: bool,
-    pub show_icon: bool,
+    ambient: bool,
+    visible: bool,
+    show_icon: bool,
     pub hidden_effect: Option<Box<MobEffectInstance>>,
 }
 
@@ -221,9 +229,14 @@ impl MobEffectInstance {
 
     pub fn from_nbt_compound(compound: &borrow::NbtCompound) -> Option<Self> {
         Some(MobEffectInstance {
-            effect: LazyMobEffect::Resolved(REGISTRY.mob_effects.effect_by_key(
-                &Identifier::vanilla(compound.get("key")?.string().unwrap().to_string()),
-            )),
+            effect: LazyMobEffect::Resolved(
+                REGISTRY
+                    .mob_effects
+                    .effect_by_key(&Identifier::vanilla(
+                        compound.get("key")?.string().unwrap().to_string(),
+                    ))
+                    .unwrap(),
+            ),
             amplifier: compound.get("amplifier")?.int()?,
             duration: {
                 if let Some(duration) = compound.get("duration") {
@@ -251,6 +264,22 @@ impl MobEffectInstance {
 
     pub fn duration(&self) -> Option<i32> {
         self.duration
+    }
+
+    pub fn ambient(&self) -> bool {
+        self.ambient
+    }
+
+    pub fn visible(&self) -> bool {
+        self.visible
+    }
+
+    pub fn show_icon(&self) -> bool {
+        self.show_icon
+    }
+
+    pub fn hidden_effect(&self) -> &Option<Box<MobEffectInstance>> {
+        &self.hidden_effect
     }
 }
 

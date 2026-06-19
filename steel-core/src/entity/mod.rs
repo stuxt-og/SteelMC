@@ -3013,7 +3013,10 @@ pub trait LivingEntity: Entity {
             } else {
                 level.broadcast_to_nearby(
                     chunk_pos,
-                    CRemoveMobEffect::new(self.id(), effect.key.clone()),
+                    CRemoveMobEffect::new(
+                        self.id(),
+                        *REGISTRY.mob_effects.effect_id_by_key(&effect.key) as i32,
+                    ),
                     None,
                 );
             }
@@ -3072,7 +3075,10 @@ pub trait LivingEntity: Entity {
             } else {
                 level.broadcast_to_nearby(
                     chunk_pos,
-                    CRemoveMobEffect::new(self.id(), instance.key().clone()),
+                    CRemoveMobEffect::new(
+                        self.id(),
+                        *REGISTRY.mob_effects.effect_id_by_key(instance.key()) as i32,
+                    ),
                     None,
                 );
             }

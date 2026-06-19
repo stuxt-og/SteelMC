@@ -5,7 +5,6 @@ use rustc_hash::FxHashMap;
 use steel_utils::Identifier;
 
 pub mod item;
-pub mod potion;
 
 use crate::{
     REGISTRY, RegistryExt, TaggedRegistryExt, blocks::BlockRef, data_components::DataComponentMap,
@@ -144,7 +143,13 @@ impl ItemRegistry {
         Some(
             *self
                 .items_by_id
-                .get(*self.items_by_key.get(&key).unwrap())
+                .get(if let Some(id) = self.items_by_key.get(&key) {
+                    *id
+                } else {
+                    log::error!("Item not found in registry: {}", key);
+
+                    return None;
+                })
                 .unwrap(),
         )
     }

@@ -32,7 +32,6 @@ use crate::{
     game_rules::GameRuleRegistry,
     instrument::InstrumentRegistry,
     items::ItemRegistry,
-    items::potion::PotionRegistry,
     jukebox_song::JukeboxSongRegistry,
     loot_table::LootTableRegistry,
     menu_type::MenuTypeRegistry,
@@ -42,6 +41,7 @@ use crate::{
     pig_sound_variant::PigSoundVariantRegistry,
     pig_variant::PigVariantRegistry,
     poi::PoiTypeRegistry,
+    potion::PotionRegistry,
     recipe::RecipeRegistry,
     sound_event::SoundEventRegistry,
     structure::StructureRegistry,
@@ -95,6 +95,7 @@ pub mod particle_type;
 pub mod pig_sound_variant;
 pub mod pig_variant;
 pub mod poi;
+pub mod potion;
 pub mod recipe;
 pub mod sound_event;
 pub mod structure;

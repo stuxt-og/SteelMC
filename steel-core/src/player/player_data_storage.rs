@@ -587,6 +587,7 @@ mod tests {
             no_gravity: false,
             nbt_data: Vec::new(),
             passengers: Vec::new(),
+            mob_effects: None,
         }
     }
 

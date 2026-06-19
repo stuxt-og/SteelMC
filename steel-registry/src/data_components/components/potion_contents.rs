@@ -11,8 +11,8 @@ use steel_utils::{
 
 use simdnbt::owned::{NbtCompound, NbtTag};
 
-use crate::items::potion::PotionRef;
 use crate::mob_effect::MobEffectInstance;
+use crate::potion::PotionRef;
 
 use crate::REGISTRY;
 

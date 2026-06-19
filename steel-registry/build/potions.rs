@@ -97,7 +97,7 @@ pub(crate) fn build() -> TokenStream {
     let mut stream = TokenStream::new();
 
     stream.extend(quote! {
-        use crate::items::potion::{LazyEffects, Potion};
+        use crate::potion::{LazyEffects, Potion};
         use crate::PotionRegistry;
         use crate::mob_effect::MobEffectInstance;
         use crate::mob_effect::LazyMobEffect;

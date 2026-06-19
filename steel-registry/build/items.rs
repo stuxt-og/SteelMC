@@ -159,11 +159,11 @@ fn generate_use_cooldown_component(value: &Value) -> TokenStream {
 
 /// Generates the TokenStream for a UseRemainder from JSON data
 fn generate_use_remainder_component(value: &Value) -> TokenStream {
-    let id = value.get("id").and_then(|v| v.as_str()).unwrap();
+    let identifier = parse_identifier(value.get("id").and_then(|v| v.as_str()).unwrap());
 
     quote! {
         vanilla_components::UseRemainder::new(
-            Identifier::vanilla_static(#id)
+            #identifier
         )
     }
 }
@@ -190,6 +190,18 @@ fn generate_use_effects_component(value: &Value) -> TokenStream {
             can_sprint: #can_sprint,
             interaction_vibrations: #interaction_vibrations,
             speed_multiplier: #speed_multiplier
+        }
+    }
+}
+
+fn parse_identifier(name: &str) -> TokenStream {
+    if let Some((namespace, path)) = name.split_once(':') {
+        quote! {
+            Identifier::new_static(#namespace, #path)
+        }
+    } else {
+        quote! {
+            Identifier::vanilla_static(#name)
         }
     }
 }
@@ -226,6 +238,8 @@ fn generate_mob_effect_instance_tokens(value: &Value) -> TokenStream {
         quote! { None }
     };
 
+    let identifier = parse_identifier(id_str);
+
     let hidden_effect_opt = value.get("hidden_effect");
 
     if let Some(hidden_effect) = hidden_effect_opt {
@@ -233,7 +247,7 @@ fn generate_mob_effect_instance_tokens(value: &Value) -> TokenStream {
 
         quote! {
             MobEffectInstance::new(
-                LazyMobEffect::Raw(Identifier::vanilla_static(#id_str)),
+                LazyMobEffect::Raw(#identifier),
                 #amplifier
             )
             .with_duration(#duration)
@@ -245,7 +259,7 @@ fn generate_mob_effect_instance_tokens(value: &Value) -> TokenStream {
     } else {
         quote! {
             MobEffectInstance::new(
-                LazyMobEffect::Raw(Identifier::vanilla_static(#id_str)),
+                LazyMobEffect::Raw(#identifier),
                 #amplifier
             )
             .with_duration(#duration)
@@ -291,15 +305,20 @@ fn generate_consume_effect_tokens(value: &Value) -> TokenStream {
             let effect_ids: Vec<TokenStream> = if let Some(arr) = effects_val.as_array() {
                 arr.iter()
                     .map(|v| {
-                        let name = v.as_str().expect("effect must be string");
-                        quote! { LazyMobEffect::Raw(Identifier::vanilla_static(#name)) }
+                        let identifier =
+                            parse_identifier(v.as_str().expect("effect must be string"));
+
+                        quote! { LazyMobEffect::Raw(#identifier) }
                     })
                     .collect()
             } else if effects_val.as_str().is_some() {
-                let name = effects_val
-                    .as_str()
-                    .expect("Invalid effects field for remove_effects");
-                vec![quote! { LazyMobEffect::Raw(Identifier::vanilla_static(#name)) }]
+                let identifier = parse_identifier(
+                    effects_val
+                        .as_str()
+                        .expect("Invalid effects field for remove_effects"),
+                );
+
+                vec![quote! { LazyMobEffect::Raw(#identifier) }]
             } else {
                 panic!("Invalid effects field for remove_effects");
             };
@@ -325,14 +344,15 @@ fn generate_consume_effect_tokens(value: &Value) -> TokenStream {
         }
 
         "minecraft:play_sound" => {
-            let sound_event = obj
-                .get("sound")
-                .and_then(|v| v.as_str())
-                .expect("Missing sound for play_sound");
+            let identifier = parse_identifier(
+                obj.get("sound")
+                    .and_then(|v| v.as_str())
+                    .expect("Missing sound for play_sound"),
+            );
 
             quote! {
                 ConsumeEffect::PlaySound {
-                    sound_event: #sound_event.to_string()
+                    sound_event: #identifier
                 }
             }
         }
