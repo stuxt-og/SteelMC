@@ -1,35 +1,33 @@
-//! Spawn chunk generation.
-//!
-//! During server startup, generates chunks around the spawn position until
-//! the 7×7 Full area is complete.
-//!
-//! Set `PREGEN_RADIUS` environment variable to generate a larger area (e.g., 128).
+//! Startup pregeneration for the server default world.
 
 use std::collections::VecDeque;
+use std::env;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use tokio::time::sleep;
-
-use steel_core::chunk::chunk_access::ChunkStatus;
-use steel_core::chunk::chunk_pyramid::GENERATION_PYRAMID;
-use steel_core::chunk::chunk_request::{
-    ChunkRequest, ChunkRequestHandle, ChunkRequestState, ChunkTicketKind,
-};
-use steel_core::server::Server;
-use steel_core::world::World;
 use steel_utils::{ChunkPos, SectionPos};
+use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
+use crate::chunk::chunk_access::ChunkStatus;
+use crate::chunk::chunk_pyramid::GENERATION_PYRAMID;
+use crate::chunk::chunk_request::{
+    ChunkRequest, ChunkRequestHandle, ChunkRequestState, ChunkTicketKind,
+};
+use crate::server::Server;
+use crate::world::World;
+
+#[cfg(feature = "slow_chunk_gen")]
+use crate::chunk::chunk_holder::SLOW_CHUNK_GEN;
 #[cfg(feature = "slow_chunk_gen")]
 use std::sync::atomic::Ordering;
-#[cfg(feature = "slow_chunk_gen")]
-use steel_core::chunk::chunk_holder::SLOW_CHUNK_GEN;
 
-/// Vanilla spawn chunk radius — chunks within this radius reach Full status.
-const SPAWN_RADIUS: i32 = 3;
+const PREGEN_SIZE_ENV: &str = "PREGEN_SIZE";
+const VANILLA_PLAYER_SPAWN_SIZE_CHUNKS: i32 = 7;
 const PREGEN_WINDOW_SIZE: i32 = 32;
 const PREGEN_ACTIVE_WINDOWS: usize = 2;
+const PREGEN_UNLOAD_BACKPRESSURE_HIGH: usize = 8192;
+const PREGEN_UNLOAD_BACKPRESSURE_LOW: usize = 4096;
 const FULL_DEPENDENCY_RADIUS: i32 = GENERATION_PYRAMID
     .get_step_to(ChunkStatus::Full)
     .accumulated_dependencies
@@ -140,52 +138,94 @@ impl ActivePregenWindow {
     }
 }
 
-/// Gets the pregeneration radius from environment variable, or returns default spawn radius.
-fn get_pregen_radius() -> i32 {
-    use std::env;
-    env::var("PREGEN_RADIUS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(SPAWN_RADIUS)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct PregenSize {
+    side_length: i32,
+    radius: i32,
 }
 
-/// Generates spawn chunks.
-///
-/// Adds a ticket at the world spawn position so that a 7×7 area of chunks
-/// reaches `Full` status. The generation system is pumped in a loop until
-/// completion.
-///
-/// Set `PREGEN_RADIUS` environment variable to generate a larger area.
-pub async fn generate_spawn_chunks(server: &Arc<Server>) -> bool {
-    let overworld = server.overworld();
-    let pregen_radius = get_pregen_radius();
+impl PregenSize {
+    fn from_side_length(side_length: i32) -> Result<Option<Self>, String> {
+        if side_length == 0 {
+            return Ok(None);
+        }
+        if side_length < 0 {
+            return Err(format!(
+                "{PREGEN_SIZE_ENV} must be 0 or a positive odd integer"
+            ));
+        }
+        if side_length % 2 == 0 {
+            return Err(format!(
+                "{PREGEN_SIZE_ENV} must be odd so the area has a single center chunk"
+            ));
+        }
 
-    // For large pregeneration, use center at 0,0; otherwise use spawn position
-    let center_chunk = if pregen_radius > SPAWN_RADIUS {
-        ChunkPos::new(0, 0)
-    } else {
-        let spawn_pos = overworld.level_data.read().data().spawn_pos();
-        ChunkPos::new(
-            SectionPos::block_to_section_coord(spawn_pos.0.x),
-            SectionPos::block_to_section_coord(spawn_pos.0.z),
-        )
+        Ok(Some(Self {
+            side_length,
+            radius: side_length / 2,
+        }))
+    }
+}
+
+impl Server {
+    /// Generates the startup spawn area for the server default world.
+    ///
+    /// Set `PREGEN_SIZE` to an odd chunk side length, or `0` to skip custom pregen.
+    pub async fn prepare_spawn_area(&self) -> bool {
+        let overworld = self.overworld();
+        let pregen_size = match get_pregen_size() {
+            Ok(Some(size)) => size,
+            Ok(None) => {
+                log::info!("Skipping custom startup spawn-area pregeneration");
+                return true;
+            }
+            Err(error) => {
+                log::error!("{error}");
+                return false;
+            }
+        };
+
+        let center_chunk = if pregen_size.side_length > VANILLA_PLAYER_SPAWN_SIZE_CHUNKS {
+            ChunkPos::new(0, 0)
+        } else {
+            let spawn_pos = overworld.level_data.read().data().spawn_pos();
+            ChunkPos::new(
+                SectionPos::block_to_section_coord(spawn_pos.0.x),
+                SectionPos::block_to_section_coord(spawn_pos.0.z),
+            )
+        };
+
+        pregen_overworld(overworld, center_chunk, pregen_size, &self.cancel_token).await
+    }
+}
+
+fn get_pregen_size() -> Result<Option<PregenSize>, String> {
+    let side_length = match env::var(PREGEN_SIZE_ENV) {
+        Ok(value) => value
+            .parse::<i32>()
+            .map_err(|e| format!("{PREGEN_SIZE_ENV} must be 0 or a positive odd integer: {e}"))?,
+        Err(env::VarError::NotPresent) => return Ok(None),
+        Err(env::VarError::NotUnicode(_)) => {
+            return Err(format!("{PREGEN_SIZE_ENV} must be valid unicode"));
+        }
     };
 
-    pregen_overworld(overworld, center_chunk, pregen_radius, &server.cancel_token).await
+    PregenSize::from_side_length(side_length)
 }
 
 async fn pregen_overworld(
     world: &Arc<World>,
     center_chunk: ChunkPos,
-    pregen_radius: i32,
+    pregen_size: PregenSize,
     cancel_token: &CancellationToken,
 ) -> bool {
-    let total_chunks = ((pregen_radius * 2 + 1) * (pregen_radius * 2 + 1)) as usize;
+    let total_chunks = total_chunks(pregen_size.side_length);
 
     log::info!(
-        "Preparing spawn area: {} chunks (radius {}) around chunk ({}, {})",
+        "Preparing spawn area: {} chunks ({}x{}) around chunk ({}, {})",
         total_chunks,
-        pregen_radius,
+        pregen_size.side_length,
+        pregen_size.side_length,
         center_chunk.0.x,
         center_chunk.0.y,
     );
@@ -195,7 +235,7 @@ async fn pregen_overworld(
 
     let elapsed = {
         let start = Instant::now();
-        let completed = generate_pregen(world, center_chunk, pregen_radius, cancel_token).await;
+        let completed = generate_pregen(world, center_chunk, pregen_size, cancel_token).await;
         (start.elapsed(), completed)
     };
 
@@ -245,19 +285,19 @@ fn build_pregen_windows(center_chunk: ChunkPos, radius: i32) -> VecDeque<PregenW
     windows
 }
 
-/// Generates chunks with progress reporting for pregeneration.
 async fn generate_pregen(
     world: &Arc<World>,
     center_chunk: ChunkPos,
-    radius: i32,
+    pregen_size: PregenSize,
     cancel_token: &CancellationToken,
 ) -> bool {
-    let total_chunks = ((radius * 2 + 1) * (radius * 2 + 1)) as usize;
-    let mut pending_windows = build_pregen_windows(center_chunk, radius);
+    let total_chunks = total_chunks(pregen_size.side_length);
+    let mut pending_windows = build_pregen_windows(center_chunk, pregen_size.radius);
     let mut active_windows = Vec::with_capacity(PREGEN_ACTIVE_WINDOWS + 1);
     let mut last_report = Instant::now();
     let mut last_completed = 0usize;
     let mut completed = 0usize;
+    let mut unload_backpressure = false;
     let start = Instant::now();
 
     log::info!(
@@ -272,18 +312,22 @@ async fn generate_pregen(
             return false;
         }
 
+        drain_pregen_broadcasts(world);
         world.chunk_map.tick_scheduling();
+        update_unload_backpressure(world, &mut unload_backpressure);
 
         for active in &mut active_windows {
             active.poll(world);
         }
 
-        let newly_ready_count = active_windows
-            .iter()
-            .filter(|active| active.ready && !active.counted)
-            .count();
-        for _ in 0..newly_ready_count {
-            activate_next_window(world, &mut pending_windows, &mut active_windows);
+        if !unload_backpressure {
+            let newly_ready_count = active_windows
+                .iter()
+                .filter(|active| active.ready && !active.counted)
+                .count();
+            for _ in 0..newly_ready_count {
+                activate_next_window(world, &mut pending_windows, &mut active_windows);
+            }
         }
 
         for active in &mut active_windows {
@@ -292,16 +336,22 @@ async fn generate_pregen(
                 active.counted = true;
             }
         }
-        fill_active_windows(world, &mut pending_windows, &mut active_windows);
+        if !unload_backpressure {
+            fill_active_windows(world, &mut pending_windows, &mut active_windows);
+        }
+        drain_pregen_broadcasts(world);
         world.chunk_map.tick_scheduling();
-        release_unneeded_completed_windows(world, &pending_windows, &mut active_windows);
+        update_unload_backpressure(world, &mut unload_backpressure);
+        release_unneeded_completed_windows(world, &mut active_windows);
 
         if completed == total_chunks {
             break;
         }
 
-        // Report progress every 5 seconds for large pregen
-        if radius > SPAWN_RADIUS && last_report.elapsed() >= Duration::from_secs(5) {
+        if pregen_size.side_length > VANILLA_PLAYER_SPAWN_SIZE_CHUNKS
+            && last_report.elapsed() >= Duration::from_secs(5)
+        {
+            let report_elapsed = last_report.elapsed().as_secs_f64();
             let ready_in_active = active_windows
                 .iter()
                 .filter(|active| !active.counted)
@@ -310,8 +360,7 @@ async fn generate_pregen(
             let current_completed = (completed + ready_in_active).min(total_chunks);
             let elapsed = start.elapsed().as_secs_f64();
             let chunks_per_sec = if elapsed > 0.0 {
-                (current_completed.saturating_sub(last_completed)) as f64
-                    / last_report.elapsed().as_secs_f64()
+                (current_completed.saturating_sub(last_completed)) as f64 / report_elapsed
             } else {
                 0.0
             };
@@ -342,6 +391,35 @@ async fn generate_pregen(
     true
 }
 
+fn update_unload_backpressure(world: &Arc<World>, unload_backpressure: &mut bool) {
+    let unloading_chunks = world.chunk_map.unloading_chunks.len();
+    if *unload_backpressure {
+        if unloading_chunks <= PREGEN_UNLOAD_BACKPRESSURE_LOW {
+            *unload_backpressure = false;
+            log::info!(
+                "Pregen unload backpressure released: unloading_chunks={unloading_chunks}, low_watermark={PREGEN_UNLOAD_BACKPRESSURE_LOW}",
+            );
+        }
+        return;
+    }
+
+    if unloading_chunks >= PREGEN_UNLOAD_BACKPRESSURE_HIGH {
+        *unload_backpressure = true;
+        log::info!(
+            "Pregen unload backpressure active: unloading_chunks={unloading_chunks}, high_watermark={PREGEN_UNLOAD_BACKPRESSURE_HIGH}, low_watermark={PREGEN_UNLOAD_BACKPRESSURE_LOW}",
+        );
+    }
+}
+
+fn drain_pregen_broadcasts(world: &Arc<World>) {
+    world.chunk_map.broadcast_changed_chunks();
+}
+
+fn total_chunks(side_length: i32) -> usize {
+    let side_length = i64::from(side_length);
+    (side_length * side_length) as usize
+}
+
 fn fill_active_windows(
     world: &Arc<World>,
     pending_windows: &mut VecDeque<PregenWindow>,
@@ -369,7 +447,6 @@ fn activate_next_window(
 
 fn release_unneeded_completed_windows(
     world: &Arc<World>,
-    pending_windows: &VecDeque<PregenWindow>,
     active_windows: &mut Vec<ActivePregenWindow>,
 ) {
     let incomplete_windows = active_windows
@@ -384,14 +461,10 @@ fn release_unneeded_completed_windows(
         }
 
         let protected = active.window.protected_rect();
-        let overlaps_incomplete = incomplete_windows
-            .iter()
-            .any(|window| protected.overlaps(window.protected_rect()));
-        let overlaps_pending = pending_windows
-            .iter()
-            .any(|window| protected.overlaps(window.protected_rect()));
 
-        overlaps_incomplete || overlaps_pending
+        incomplete_windows
+            .iter()
+            .any(|window| protected.overlaps(window.protected_rect()))
     });
 
     world.chunk_map.tick_scheduling();
@@ -400,4 +473,35 @@ fn release_unneeded_completed_windows(
 fn release_all_windows(world: &Arc<World>, active_windows: &mut Vec<ActivePregenWindow>) {
     active_windows.clear();
     world.chunk_map.tick_scheduling();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pregen_size_accepts_zero_as_disabled() {
+        assert_eq!(PregenSize::from_side_length(0), Ok(None));
+    }
+
+    #[test]
+    fn pregen_size_accepts_odd_side_lengths() {
+        assert_eq!(
+            PregenSize::from_side_length(7),
+            Ok(Some(PregenSize {
+                side_length: 7,
+                radius: 3,
+            }))
+        );
+    }
+
+    #[test]
+    fn pregen_size_rejects_even_side_lengths() {
+        assert!(PregenSize::from_side_length(2).is_err());
+    }
+
+    #[test]
+    fn pregen_size_rejects_negative_side_lengths() {
+        assert!(PregenSize::from_side_length(-1).is_err());
+    }
 }

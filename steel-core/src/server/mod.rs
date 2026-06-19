@@ -1,6 +1,7 @@
 //! This module contains the `Server` struct, which is the main entry point for the server.
 /// Tick-polled server jobs.
 pub mod jobs;
+mod pregen;
 /// The registry cache for the server.
 pub mod registry_cache;
 /// The tick rate manager for the server.
@@ -722,6 +723,7 @@ impl Server {
                 portal_cooldown: 0,
                 sea_level: world.sea_level,
             },
+            online_mode: self.config.online_mode,
             enforces_secure_chat: self.config.enforce_secure_chat,
         });
     }
